@@ -39,3 +39,4 @@ next-env.d.ts
 
 # claude code (no subir al repo)
 .claude/
+skills-lock.json
