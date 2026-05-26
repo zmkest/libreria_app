@@ -8,28 +8,35 @@
 
 **Nombre:** Sistema de Gestión de Inventario para Librería Escolar
 **Tipo de negocio:** Librería / papelería dedicada a productos escolares y educativos (cuadernos, lápices, mochilas, textos escolares, útiles, etc.). **NO es una librería de libros literarios**, por lo tanto el modelo de datos NO debe centrarse en ISBN, autores ni editoriales.
-**Ubicación del negocio:** Ecuador (moneda USD, IVA configurable, actualmente 15%).
+**Ubicación del negocio:** Ecuador (moneda USD).
 **Modalidad de uso:** Aplicación de escritorio (Tauri) con base de datos PostgreSQL local en la misma máquina. **Uso offline garantizado** por diseño (no depende de internet).
 
 ### Objetivos funcionales
-1. Gestión de **inventario** de productos escolares con alertas de stock bajo.
-2. **Ventas** (punto de venta sencillo, solo efectivo, sin emisión fiscal SRI por ahora).
-3. Gestión de **clientes** (datos básicos + historial de compras).
-4. **Reportes** y **dashboard** con métricas de ventas, productos más vendidos, stock crítico, etc.
-5. Sistema de **usuarios y roles** (admin / empleado).
+1. Gestión de **inventario** de productos (código, nombre, precio de compra, precio de venta, cantidad).
+2. **Ventas** simples (un producto por venta, en efectivo).
+3. Gestión de **clientes** (nombres, apellidos, cédula opcional, dirección, celular).
+4. **Reportes** y **dashboard** con métricas de ventas por día y por mes.
+5. Sistema de **usuarios con login** (sin roles).
 
 ### Lo que NO incluye este proyecto (NO implementar)
-- ❌ Facturación electrónica con SRI (XML, firma .p12, web services). El sistema queda **preparado estructuralmente** para migrar en el futuro, pero NO se implementa la emisión fiscal.
-- ❌ Escaneo de códigos de barras (búsqueda manual por nombre y SKU).
-- ❌ Múltiples métodos de pago (solo efectivo).
-- ❌ Múltiples bodegas/ubicaciones (stock único por producto).
+- ❌ **Roles ni permisos diferenciados.** Todos los usuarios autenticados tienen el mismo nivel de acceso.
+- ❌ **Cálculo de IVA / impuestos.** El precio de venta del producto es el precio final que paga el cliente.
+- ❌ **Categorías de productos.**
+- ❌ **Historial de movimientos de stock** (no hay tabla `StockMovement`).
+- ❌ **Carrito de compras / múltiples productos por venta.** Una venta = un producto.
+- ❌ **Tabla de configuración global** (`Settings`).
+- ❌ **Lógica automática de descuento de stock.** El campo `stock` existe en `Product` pero NO se muestra en la UI, NO se descuenta al vender, NO se valida. Es un campo dormido reservado para uso futuro.
+- ❌ Facturación electrónica con SRI (XML, firma .p12, web services).
+- ❌ Escaneo de códigos de barras (búsqueda manual por código/nombre).
+- ❌ Múltiples métodos de pago (solo efectivo implícito).
+- ❌ Múltiples bodegas/ubicaciones.
 - ❌ Exportación a CSV/Excel/PDF.
 - ❌ Búsqueda de productos en APIs externas (Google Books, Open Library).
 - ❌ Internacionalización i18n (solo español).
 - ❌ Soporte multimoneda (solo USD).
-- ❌ Backend remoto compartido (la BD es siempre local en la misma máquina).
+- ❌ Backend remoto compartido (la BD es siempre local).
 - ❌ Tarjetas, transferencias, crédito o fiado al cliente.
-- ❌ **Tests automatizados** (Vitest, Playwright, Jest, etc.). No instalar ni configurar frameworks de testing. La calidad se asegura con TypeScript estricto, validación Zod y revisión manual.
+- ❌ **Tests automatizados** (Vitest, Playwright, Jest, etc.). La calidad se asegura con TypeScript estricto, validación Zod y verificación manual.
 
 > **Regla:** Si te piden agregar alguna de las funciones excluidas, **detente y pregúntale al usuario antes de implementarlas.** No las añadas por iniciativa propia "por si acaso".
 
@@ -40,7 +47,7 @@
 | Capa | Tecnología | Notas |
 |------|------------|-------|
 | Gestor de paquetes | **pnpm** | Obligatorio. NO usar npm ni yarn. |
-| Runtime / Framework | **Next.js 15+ (App Router)** con **API Routes** | Server Components por defecto, Client Components solo cuando sea necesario. |
+| Runtime / Framework | **Next.js 15+ (App Router)** con **API Routes** | Server Components por defecto. |
 | Lenguaje | **TypeScript estricto** | `strict: true` en tsconfig. Prohibido `any` salvo justificación documentada. |
 | Aplicación de escritorio | **Tauri 2.x** | Empaqueta el Next.js como app nativa. |
 | Base de datos | **PostgreSQL** (local) | Versión 16+ recomendada. |
@@ -64,27 +71,44 @@
 ### Decisiones explícitas a respetar
 - **`pnpm` siempre.** Si encuentras `package-lock.json` o `yarn.lock`, elimínalos.
 - **App Router de Next.js**, NO Pages Router.
-- **Server Actions** para mutaciones simples desde formularios; **API Routes** (`app/api/.../route.ts`) cuando se requiera consumo externo o integración con Tauri.
+- **Server Actions** para mutaciones simples desde formularios; **API Routes** (`app/api/.../route.ts`) cuando se requiera consumo externo.
 - **Server Components por defecto.** Marca `"use client"` solo donde sea estrictamente necesario.
-- Nunca uses `localStorage` o `sessionStorage` para datos de negocio. Estado de UI puede ir en cookies/estado React.
-- Nunca expongas la conexión de Prisma al cliente. Toda consulta vive en servidor (Server Components, Server Actions, Route Handlers).
+- Nunca uses `localStorage` o `sessionStorage` para datos de negocio.
+- Nunca expongas la conexión de Prisma al cliente. Toda consulta vive en servidor.
 - **No se incluyen frameworks de testing.** No instalar Vitest, Jest, Playwright ni similares.
 
 ---
 
 ## 3. Estructura de Carpetas
 
+### ⚠️ REGLA CRÍTICA: Inicialización del proyecto
+
+**El proyecto debe crearse EN la carpeta actual donde está ubicado este `CLAUDE.md`, NO en una subcarpeta ni en otra carpeta externa.**
+
+Ejemplo: si el usuario está en `libreria_app/` y dentro hay `CLAUDE.md` y `PLAN.md`, entonces:
+- ✅ **CORRECTO:** ejecutar `pnpm create next-app@latest .` (con punto al final = carpeta actual)
+- ❌ **INCORRECTO:** ejecutar `pnpm create next-app@latest libreria` → crearía `libreria_app/libreria/`
+- ❌ **INCORRECTO:** crear `libreria_temp` afuera y luego copiar → NUNCA
+- ❌ **INCORRECTO:** ejecutar `pnpm create next-app@latest libreria_app` desde el padre
+
+**Antes de inicializar:**
+1. Verificar que la carpeta actual contiene SOLO `CLAUDE.md`, `PLAN.md` y opcionalmente `.git/`.
+2. Si hay otros archivos, **detenerse y preguntar al usuario** antes de continuar.
+3. Cuando `create-next-app` pregunte si está bien usar el directorio actual no vacío, responder afirmativamente.
+
+### Estructura resultante
+
 ```
-libreria/
-├── CLAUDE.md                    ← este archivo (no modificar sin permiso explícito)
-├── PLAN.md                      ← roadmap por features (no modificar sin permiso)
+libreria_app/                    ← carpeta donde está CLAUDE.md y se ejecuta claude
+├── CLAUDE.md                    ← este archivo (no modificar sin permiso)
+├── PLAN.md                      ← roadmap (no modificar sin permiso)
 ├── README.md                    ← documentación de instalación y uso
 ├── package.json
 ├── pnpm-lock.yaml
 ├── tsconfig.json
 ├── next.config.ts
 ├── tailwind.config.ts
-├── .env.example                 ← plantilla de variables
+├── .env.example
 ├── .env                         ← (gitignored)
 ├── prisma/
 │   ├── schema.prisma
@@ -97,37 +121,32 @@ libreria/
 │       └── main.rs
 └── src/
     ├── app/                     ← Next.js App Router
-    │   ├── (auth)/              ← rutas públicas (login)
+    │   ├── (auth)/
     │   │   └── login/
-    │   ├── (dashboard)/         ← rutas protegidas
+    │   ├── (dashboard)/
     │   │   ├── layout.tsx       ← sidebar + topbar
     │   │   ├── page.tsx         ← dashboard
     │   │   ├── productos/
     │   │   ├── ventas/
     │   │   ├── clientes/
-    │   │   ├── reportes/
-    │   │   ├── usuarios/        ← solo admin
-    │   │   └── ajustes/         ← solo admin
-    │   ├── api/                 ← Route Handlers
+    │   │   └── reportes/
+    │   ├── api/
     │   │   └── auth/[...nextauth]/route.ts
     │   ├── layout.tsx
     │   └── globals.css
     ├── components/
     │   ├── ui/                  ← shadcn/ui (generados por CLI)
     │   └── shared/              ← componentes propios reutilizables
-    ├── features/                ← lógica por dominio (ver §5)
+    ├── features/                ← lógica por dominio
     │   ├── productos/
     │   ├── ventas/
     │   ├── clientes/
     │   ├── reportes/
-    │   ├── usuarios/
-    │   └── ajustes/
+    │   └── usuarios/
     ├── lib/
     │   ├── prisma.ts            ← singleton de PrismaClient
     │   ├── auth.ts              ← config de Auth.js
     │   ├── money.ts             ← helpers para Decimal
-    │   ├── tax.ts               ← cálculo de IVA usando Settings
-    │   ├── permissions.ts       ← chequeos de rol
     │   └── utils.ts             ← cn() y utilidades
     ├── server/
     │   └── actions/             ← Server Actions agrupadas
@@ -143,14 +162,14 @@ libreria/
 > ├── types.ts          ← tipos derivados
 > ├── queries.ts        ← lectura (Server, usa prisma)
 > ├── actions.ts        ← Server Actions (escritura)
-> └── components/       ← componentes específicos de productos
+> └── components/       ← componentes específicos
 > ```
 
 ---
 
-## 4. Modelo de Datos (Prisma — referencia inicial)
+## 4. Modelo de Datos (Prisma)
 
-Este es el modelo base que debe implementarse en `prisma/schema.prisma`. Si necesitas agregar campos, **documenta el por qué en el commit**.
+Este es el modelo COMPLETO que debe implementarse en `prisma/schema.prisma`. **No agregar campos sin autorización del usuario.**
 
 ```prisma
 // Datasource y generator
@@ -163,105 +182,55 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ============ USUARIOS Y AUTH ============
-
-enum Role {
-  ADMIN
-  EMPLEADO
-}
+// ============ USUARIOS ============
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
+  username  String   @unique
   password  String   // hash argon2
-  role      Role     @default(EMPLEADO)
-  active    Boolean  @default(true)
+  name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   sales     Sale[]
 }
 
-// ============ CATÁLOGO ============
-
-model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  description String?
-  products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-}
-
-model Product {
-  id           String      @id @default(cuid())
-  sku          String      @unique           // código interno único
-  name         String
-  description  String?
-  categoryId   String
-  category     Category    @relation(fields: [categoryId], references: [id])
-  price        Decimal     @db.Decimal(10, 2) // precio de venta (sin IVA o con IVA según taxIncluded)
-  cost         Decimal     @db.Decimal(10, 2) // costo
-  taxable      Boolean     @default(true)     // si aplica IVA (algunos útiles pueden estar exentos)
-  stock        Int         @default(0)
-  minStock     Int         @default(5)        // umbral de alerta
-  active       Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  saleItems    SaleItem[]
-  movements    StockMovement[]
-
-  @@index([name])
-  @@index([sku])
-  @@index([categoryId])
-}
-
-model StockMovement {
-  id        String              @id @default(cuid())
-  productId String
-  product   Product             @relation(fields: [productId], references: [id])
-  type      StockMovementType
-  quantity  Int                 // positivo o negativo según el tipo
-  reason    String?
-  saleId    String?             // si fue por venta
-  userId    String              // quién lo hizo
-  createdAt DateTime            @default(now())
-}
-
-enum StockMovementType {
-  ENTRADA     // compra/ingreso manual
-  SALIDA      // ajuste por pérdida/daño
-  VENTA       // descuento por venta
-  DEVOLUCION  // reversión de venta
-  AJUSTE      // ajuste manual de inventario
-}
-
 // ============ CLIENTES ============
 
 model Customer {
+  id        String   @id @default(cuid())
+  idNumber  String?  // cédula, opcional, sin validación SRI
+  firstName String                                // nombres
+  lastName  String                                // apellidos
+  address   String?
+  phone     String?                               // celular
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+
+  @@index([idNumber])
+  @@index([lastName, firstName])
+}
+
+// ============ PRODUCTOS (INVENTARIO) ============
+
+model Product {
   id            String   @id @default(cuid())
-  // Campos preparados para futura facturación SRI:
-  idType        IdType   @default(CEDULA)     // CEDULA | RUC | PASAPORTE | CONSUMIDOR_FINAL
-  idNumber      String?                       // opcional, "consumidor final" no lo necesita
+  code          String   @unique                  // código del producto
   name          String
-  email         String?
-  phone         String?
-  address       String?
-  notes         String?
-  active        Boolean  @default(true)
+  purchasePrice Decimal  @db.Decimal(10, 2)       // precio de compra
+  salePrice     Decimal  @db.Decimal(10, 2)       // precio de venta (precio final, sin IVA)
+
+  // Campo DORMIDO: existe en BD pero NO se usa todavía.
+  // No mostrar en UI, no validar al vender, no descontar al vender.
+  // Reservado para futura lógica de control de inventario.
+  stock         Int      @default(0)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   sales         Sale[]
 
-  @@index([idNumber])
+  @@index([code])
   @@index([name])
-}
-
-enum IdType {
-  CEDULA
-  RUC
-  PASAPORTE
-  CONSUMIDOR_FINAL
 }
 
 // ============ VENTAS ============
@@ -269,86 +238,56 @@ enum IdType {
 model Sale {
   id           String     @id @default(cuid())
   saleNumber   Int        @unique @default(autoincrement())  // correlativo legible
+
   customerId   String?
   customer     Customer?  @relation(fields: [customerId], references: [id])
-  userId       String                                        // empleado que vendió
+
+  userId       String                                        // quién vendió
   user         User       @relation(fields: [userId], references: [id])
 
-  // Importes (todos en USD, Decimal 10,2)
-  subtotal     Decimal    @db.Decimal(10, 2)   // suma de líneas SIN IVA
-  taxRate      Decimal    @db.Decimal(5, 2)    // % IVA congelado en el momento (ej: 15.00)
-  taxAmount    Decimal    @db.Decimal(10, 2)
-  total        Decimal    @db.Decimal(10, 2)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  productName  String                                        // snapshot del nombre al momento de venta
 
-  paymentMethod PaymentMethod @default(EFECTIVO)
-  cashReceived  Decimal?      @db.Decimal(10, 2)   // efectivo recibido
-  cashChange    Decimal?      @db.Decimal(10, 2)   // vuelto
+  unitPrice    Decimal    @db.Decimal(10, 2)                 // precio al momento de venta
+  quantity     Int                                           // cantidad vendida
+  total        Decimal    @db.Decimal(10, 2)                 // unitPrice * quantity
 
-  status        SaleStatus    @default(COMPLETADA)
-  notes         String?
-  createdAt     DateTime      @default(now())
-  cancelledAt   DateTime?
-  cancelReason  String?
+  status       SaleStatus @default(COMPLETADA)
+  cancelReason String?
+  cancelledAt  DateTime?
 
-  items         SaleItem[]
+  createdAt    DateTime   @default(now())                    // FECHA DE VENTA (usado en reportes)
+  updatedAt    DateTime   @updatedAt
 
   @@index([createdAt])
   @@index([customerId])
   @@index([userId])
-}
-
-enum PaymentMethod {
-  EFECTIVO
-  // Reservado para futuro: TRANSFERENCIA, TARJETA
+  @@index([productId])
+  @@index([status])
 }
 
 enum SaleStatus {
   COMPLETADA
   CANCELADA
 }
-
-model SaleItem {
-  id          String   @id @default(cuid())
-  saleId      String
-  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-
-  // Snapshot del producto en el momento de la venta:
-  productName String                            // congelado por si el producto cambia de nombre
-  unitPrice   Decimal  @db.Decimal(10, 2)       // precio sin IVA al momento de venta
-  quantity    Int
-  taxable     Boolean  @default(true)           // si esa línea aplica IVA
-  lineSubtotal Decimal @db.Decimal(10, 2)       // unitPrice * quantity
-  lineTax      Decimal @db.Decimal(10, 2)
-  lineTotal    Decimal @db.Decimal(10, 2)
-
-  @@index([saleId])
-  @@index([productId])
-}
-
-// ============ CONFIGURACIÓN GLOBAL ============
-
-model Settings {
-  id              Int      @id @default(1)      // singleton: siempre id=1
-  businessName    String   @default("Librería")
-  businessRuc     String?
-  businessAddress String?
-  businessPhone   String?
-  taxRate         Decimal  @db.Decimal(5, 2) @default(15.00)   // IVA global
-  taxIncluded     Boolean  @default(false)      // si los precios YA incluyen IVA
-  currency        String   @default("USD")
-  updatedAt       DateTime @updatedAt
-}
 ```
 
 ### Reglas críticas del modelo
-1. **Toda venta** debe descontar stock y crear un `StockMovement` con `type: VENTA` en la misma transacción de Prisma (`prisma.$transaction`). **Nunca** descuentes stock sin movimiento.
-2. **El IVA se lee de `Settings.taxRate` en el momento de crear la venta y se CONGELA en `Sale.taxRate`.** No volver a calcular después.
-3. Si un producto tiene `taxable: false`, su línea de venta debe registrar `lineTax = 0` aunque `Settings.taxRate > 0`.
-4. **Cancelar una venta** = `status = CANCELADA` + crear `StockMovement` con `type: DEVOLUCION` que regresa el stock. **Nunca** borrar ventas físicamente.
-5. `Settings` es **singleton** con `id = 1`. El seed debe crear esta fila. Toda consulta de configuración es `findUnique({ where: { id: 1 } })`.
-6. **Decimal**: en código TypeScript, los `Decimal` de Prisma son objetos `Decimal.js`. **NO los conviertas a `Number`** para operar; usa los métodos del SDK (`.plus()`, `.times()`, `.mul()`).
+
+1. **`Product.stock` es un campo dormido.** Existe en BD con valor por defecto `0`. **NO** se muestra en formularios, **NO** se descuenta al vender, **NO** se valida. Solo se persiste para uso futuro. Si Claude Code lo expone o lo modifica, está violando la especificación.
+
+2. **`Sale.createdAt` es la fecha de venta** y se usa directamente para los reportes (diarios y mensuales). No crear otro campo `saleDate`.
+
+3. **`Sale.productName` es un snapshot.** Se copia desde `Product.name` al momento de crear la venta. Si el nombre del producto cambia después, las ventas viejas conservan el nombre original. Igual con `unitPrice`: se congela el precio al que se vendió.
+
+4. **`Sale.total` se calcula en el servidor** como `unitPrice * quantity` (operación con `Decimal.js`, nunca `Number`). Nunca confiar en un total enviado desde el cliente.
+
+5. **Cancelar una venta** = `status = CANCELADA` + `cancelledAt = now()` + `cancelReason` obligatorio. **NUNCA** borrar ventas físicamente. **La cancelación NO modifica stock** porque no hay lógica de stock activa.
+
+6. **`Customer` sin `idNumber`** es válido (cliente "consumidor final" o anónimo).
+
+7. **`Decimal` en TypeScript**: los campos `Decimal` de Prisma son objetos `Decimal.js`. **NO los conviertas a `Number`** para operar; usa los métodos del SDK (`.plus()`, `.times()`, `.mul()`).
 
 ---
 
@@ -356,17 +295,14 @@ model Settings {
 
 El usuario eligió **estrategia feature-driven**: cada feature se entrega completa (modelo + Server Actions + UI) antes de pasar a la siguiente. Ver `PLAN.md` para detalles. Orden estricto:
 
-1. **Setup inicial** (Tauri + Next.js + Prisma + Tailwind + shadcn/ui + Auth.js).
-2. **Autenticación y usuarios** (login, sesiones, middleware, roles).
-3. **Configuración global** (Settings, ajustes de IVA y negocio).
-4. **Categorías**.
-5. **Productos** (con stock y movimientos).
-6. **Clientes**.
-7. **Ventas (POS)** — el feature más crítico.
-8. **Dashboard** (KPIs en tiempo real).
-9. **Reportes** (filtros, agregaciones).
-10. **Alertas de stock bajo**.
-11. **Empaquetado Tauri** y release.
+1. **Setup inicial** (Next.js + Tauri + Prisma + Tailwind + shadcn/ui + Auth.js) **en la carpeta actual**.
+2. **Autenticación** (login con username + password, sin roles).
+3. **Productos** (CRUD básico de inventario).
+4. **Clientes** (CRUD básico).
+5. **Ventas** (registro de venta = un producto + cliente + cantidad).
+6. **Dashboard** (KPIs simples).
+7. **Reportes** (por día y por mes usando `createdAt`).
+8. **Empaquetado Tauri** y release.
 
 > **No saltes pasos. No empieces el feature N+1 hasta que N esté completo y commiteado.**
 
@@ -378,6 +314,7 @@ El usuario eligió **estrategia feature-driven**: cada feature se entrega comple
 1. **Lee este archivo completo y `PLAN.md`** si existe.
 2. **Confirma con el usuario qué feature vas a trabajar.**
 3. **Si encuentras ambigüedad, pregunta. NO inventes.**
+4. **Verifica que estás trabajando en la carpeta correcta** (la que contiene `CLAUDE.md`, NO una subcarpeta).
 
 ### Antes de escribir código
 1. Revisa qué ya existe en el repo (`view` de directorios relevantes).
@@ -385,49 +322,47 @@ El usuario eligió **estrategia feature-driven**: cada feature se entrega comple
 3. Si vas a instalar una dependencia nueva no listada en §2, **pide autorización primero**.
 
 ### Al escribir código
-1. **TypeScript estricto**, sin `any` salvo comentario `// eslint-disable-next-line` con justificación.
+1. **TypeScript estricto**, sin `any` salvo comentario justificado.
 2. **Validación con Zod en TODA entrada** (Server Action, Route Handler, formulario). Esta es la principal línea de defensa: como no hay tests, la validación debe ser exhaustiva.
 3. **Manejo de errores con `try/catch` y respuestas tipadas**. Para Server Actions, devolver `{ success: true, data } | { success: false, error }`.
 4. **Mensajes de error al usuario en español**.
-5. **Comentarios técnicos en español** cuando aclaren lógica de negocio (cálculo de IVA, descuento de stock, etc.). Los nombres de variables, funciones y archivos van en **inglés**.
-6. **Componentes UI**: cada uno con su prop tipada por interface. Evitar prop drilling profundo (>2 niveles); usar composición.
-7. **Server Actions** marcadas con `"use server"` al inicio del archivo o función.
-8. **Nunca consultes Prisma desde Client Components**.
+5. **Comentarios técnicos en español** cuando aclaren lógica de negocio. Los nombres de variables, funciones y archivos van en **inglés**.
+6. **Server Actions** marcadas con `"use server"`.
+7. **Nunca consultes Prisma desde Client Components**.
 
 ### Al manejar dinero
 1. **Siempre `Decimal`** en BD (Prisma `@db.Decimal(10, 2)`).
 2. **Operaciones con `Decimal.js`** (`.plus`, `.minus`, `.mul`, `.div`), nunca operadores `+ - * /`.
-3. Helpers en `src/lib/money.ts` para formatear (`$ 1,234.56`), parsear, sumar líneas, calcular IVA.
+3. Helpers en `src/lib/money.ts` para formatear (`$ 1,234.56`), parsear, calcular `total = unitPrice * quantity`, calcular `profit = salePrice - purchasePrice`.
 
 ### Verificación manual (reemplaza a los tests)
 Antes de cerrar una feature, **prueba manualmente en el navegador / app Tauri** los siguientes escenarios cuando aplique:
 - Caso feliz: el flujo principal funciona.
 - Caso de error: el sistema responde con mensajes claros cuando la entrada es inválida.
-- Permisos: el rol incorrecto no puede acceder a la acción.
 - Persistencia: al recargar, los datos siguen ahí.
-- Concurrencia básica: dos pestañas no rompen el estado.
+- Sesión: rutas protegidas redirigen a login sin sesión.
 
-Documentar en el PR o commit qué se probó manualmente.
+Documentar en el commit qué se probó manualmente.
 
 ### Migraciones
 1. Toda modificación de `schema.prisma` se acompaña de `pnpm prisma migrate dev --name <nombre_descriptivo>`.
-2. Nombres de migración en español kebab-case: `agregar-tabla-productos`, `cambiar-iva-a-decimal`.
+2. Nombres de migración en español kebab-case: `agregar-tabla-productos`, `agregar-cancelacion-de-venta`.
 
 ### Commits
 - **Conventional Commits en español**:
   - `feat: agregar formulario de creación de productos`
-  - `fix: corregir cálculo de IVA cuando producto es exento`
+  - `fix: corregir cálculo de ganancia en listado`
   - `refactor: extraer helper money a lib`
-  - `docs: actualizar CLAUDE.md con regla de Decimal`
+  - `docs: actualizar README con guía de instalación`
   - `chore: actualizar dependencias`
-- **Un commit por unidad lógica**, no commits gigantes.
+- **Un commit por unidad lógica.**
 
 ### Antes de cerrar una feature
 1. ¿La migración de Prisma se ejecutó sin errores?
 2. ¿Lint y typecheck limpios? (`pnpm lint && pnpm typecheck`).
-3. ¿Verificación manual de los escenarios listados arriba?
+3. ¿Verificación manual de los escenarios principales?
 4. ¿La UI funciona en modo claro y oscuro?
-5. ¿La feature está documentada en el README (sección de uso)?
+5. ¿La feature está documentada en el README?
 6. ¿Hay un commit por etapa lógica?
 
 ---
@@ -451,7 +386,8 @@ NODE_ENV="development"
 ## 8. Comandos Frecuentes
 
 ```bash
-# Instalación inicial
+# Instalación inicial (EN la carpeta actual)
+pnpm create next-app@latest .
 pnpm install
 
 # Base de datos
@@ -477,50 +413,35 @@ pnpm tauri build                 # empaquetar app de escritorio
 
 ## 9. Casos de Negocio Documentados
 
-### Cálculo de IVA en una venta
+### Cálculo de ganancia (profit)
 ```
-Por cada línea de SaleItem:
-  lineSubtotal = unitPrice * quantity
-  if (item.taxable) {
-    lineTax = lineSubtotal * (Sale.taxRate / 100)
-  } else {
-    lineTax = 0
-  }
-  lineTotal = lineSubtotal + lineTax
-
-Sale.subtotal = suma de lineSubtotal de todas las líneas
-Sale.taxAmount = suma de lineTax
-Sale.total = Sale.subtotal + Sale.taxAmount
+Por producto, en tiempo de consulta (NO se guarda en BD):
+  profit = salePrice - purchasePrice
 ```
+Se calcula al vuelo en queries o helpers (`src/lib/money.ts`). El campo NO existe en la tabla `Product`.
 
-> El `taxRate` siempre se toma de `Settings.taxRate` al momento de crear la venta y se guarda en `Sale.taxRate`. Así, si mañana el IVA sube al 16%, los reportes históricos siguen mostrando 15% en las ventas anteriores.
-
-### Alerta de stock bajo
-- Un producto está en stock bajo cuando `stock <= minStock`.
-- El dashboard muestra el contador de productos en stock bajo.
-- Una sección dedicada en `/productos?filter=stock-bajo` lista los productos críticos.
+### Cálculo del total de una venta
+```
+Al crear una Sale:
+  total = unitPrice * quantity   (operación Decimal.js)
+```
+El servidor recalcula el total a partir del precio del producto al momento de venta. Nunca confiar en un `total` enviado desde el cliente.
 
 ### Cancelación de venta
-- Solo el rol `ADMIN` puede cancelar.
-- Se requiere `cancelReason` (texto obligatorio).
-- En una transacción Prisma:
-  1. `Sale.status = CANCELADA`, `Sale.cancelledAt = now()`.
-  2. Por cada `SaleItem`, crear `StockMovement` con `type: DEVOLUCION` que **suma** la cantidad de vuelta al `Product.stock`.
+- Cualquier usuario autenticado puede cancelar (no hay roles).
+- Se requiere `cancelReason` (texto obligatorio, mínimo 3 caracteres).
+- Acción:
+  1. `Sale.status = CANCELADA`
+  2. `Sale.cancelledAt = now()`
+  3. `Sale.cancelReason = <motivo>`
+- **NO se modifica stock** porque el campo `stock` está dormido en esta versión.
 
-### Permisos por rol
-| Acción | ADMIN | EMPLEADO |
-|--------|-------|----------|
-| Login / ver dashboard | ✅ | ✅ |
-| Ver productos / clientes / ventas | ✅ | ✅ |
-| Crear / editar productos | ✅ | ❌ |
-| Crear / editar clientes | ✅ | ✅ |
-| Realizar venta | ✅ | ✅ |
-| Cancelar venta | ✅ | ❌ |
-| Ver reportes | ✅ | ❌ |
-| Gestionar usuarios | ✅ | ❌ |
-| Cambiar ajustes (IVA, datos del negocio) | ✅ | ❌ |
-
-Implementar `lib/permissions.ts` con funciones tipo `canCancelSale(user)`, `canManageUsers(user)`, etc. Usar en Server Actions, middleware y para esconder controles en UI.
+### Reportes por día y por mes
+- Se basan en el campo `Sale.createdAt`.
+- Filtros típicos:
+  - **Por día:** ventas de hoy, ventas de una fecha específica, rango de días.
+  - **Por mes:** ventas del mes actual, ventas de un mes específico (año + mes).
+- Las ventas con `status = CANCELADA` se **excluyen** de los totales por defecto, pero se pueden listar aparte.
 
 ---
 
@@ -528,23 +449,28 @@ Implementar `lib/permissions.ts` con funciones tipo `canCancelSale(user)`, `canM
 
 - ¿Instalar una librería que no está en la lista del §2?
 - ¿Crear una tabla nueva en Prisma no contemplada en §4?
+- ¿Agregar un campo a una tabla existente?
 - ¿Cambiar la estructura de carpetas del §3?
 - ¿Modificar este `CLAUDE.md` o `PLAN.md`?
-- ¿Agregar funcionalidad listada en "lo que NO incluye"? (incluye instalar frameworks de testing)
+- ¿Agregar funcionalidad listada en "lo que NO incluye"? (especialmente: roles, IVA, categorías, lógica de stock, tests)
 - ¿Borrar datos o tablas existentes?
 - ¿Hacer un cambio que afecta múltiples features ya cerradas?
+- **¿La carpeta actual ya tiene archivos del proyecto Next.js o está vacía?** Verificar antes de inicializar.
 
 ---
 
 ## 11. Anti-patrones a evitar
 
+- ❌ Crear el proyecto en una subcarpeta cuando el usuario ya está en la carpeta destino.
 - ❌ Cliente de Prisma instanciado en cada request → usar singleton en `lib/prisma.ts`.
 - ❌ `Number` para dinero.
 - ❌ `any` o `as any`.
 - ❌ Lógica de negocio en componentes UI → vive en `features/<x>/actions.ts` o `queries.ts`.
 - ❌ Validación solo en cliente → siempre también en servidor.
-- ❌ Mezclar lecturas y escrituras sin transacción cuando deben ser atómicas (venta + stock).
-- ❌ Hardcodear IVA (15) en código → siempre desde `Settings`.
+- ❌ Implementar lógica de descuento de stock (campo dormido, prohibido tocar).
+- ❌ Implementar cálculo de IVA o impuestos.
+- ❌ Implementar sistema de roles.
+- ❌ Guardar `profit` en la tabla `Product` (debe ser calculado al vuelo).
 - ❌ Hacer migraciones con `prisma db push` en producción → siempre `migrate dev` / `migrate deploy`.
 - ❌ Commits que mezclan features distintas.
 - ❌ Instalar Vitest, Jest, Playwright o cualquier framework de testing.

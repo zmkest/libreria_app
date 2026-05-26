@@ -25,28 +25,67 @@ Cada feature debe terminar con un commit principal y, opcionalmente, varios comm
 
 ## ✅ Feature 0 — Setup Inicial
 
-**Objetivo:** Tener un proyecto vacío pero ejecutable con todo el stack listo.
+**Objetivo:** Tener un proyecto vacío pero ejecutable con todo el stack listo **en la carpeta actual**.
+
+### ⚠️ Regla crítica de carpeta
+
+El usuario ya creó una carpeta (ej: `libreria_app/`), colocó `CLAUDE.md` y `PLAN.md` adentro, y ejecutó `claude` desde ahí. **El proyecto Next.js se inicializa EN esa misma carpeta**, no en una subcarpeta.
+
+**Antes de ejecutar cualquier comando:**
+1. Ejecutar `pwd` para confirmar la carpeta actual.
+2. Ejecutar `ls -la` para verificar que solo hay `CLAUDE.md`, `PLAN.md` y opcionalmente `.git/`.
+3. Si hay otros archivos no esperados, **detenerse y preguntar al usuario** antes de continuar.
 
 ### Pasos
-1. `pnpm create next-app@latest libreria` (TypeScript, App Router, Tailwind, ESLint, src/).
-2. Configurar Tauri 2:
-   - `pnpm add -D @tauri-apps/cli`
-   - `pnpm tauri init` con app name "Librería", window title "Sistema de Inventario".
-   - Configurar `tauri.conf.json` con `beforeDevCommand: "pnpm dev"`, `devUrl: "http://localhost:3000"`, `frontendDist: "../out"`.
-   - Ajustar `next.config.ts` para soportar build estático compatible con Tauri (`output: 'export'` cuando se buildea para Tauri — evaluar implicaciones con API routes; alternativa: usar `next start` empaquetado).
-3. Instalar dependencias base:
+
+1. **Inicializar Next.js EN la carpeta actual:**
+   ```bash
+   pnpm create next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
+   ```
+   - El `.` al final es crítico: significa "inicializar aquí".
+   - Cuando pregunte si está bien usar el directorio no vacío, responder **sí**.
+   - Cuando pregunte por turbopack, elegir según preferencia (recomendado: sí).
+
+2. **Configurar Tauri 2:**
+   ```bash
+   pnpm add -D @tauri-apps/cli
+   pnpm tauri init
+   ```
+   - App name: "Librería"
+   - Window title: "Sistema de Inventario"
+   - `beforeDevCommand`: `"pnpm dev"`
+   - `devUrl`: `"http://localhost:3000"`
+   - `frontendDist`: `"../out"` (o lo que corresponda según modo de build)
+   - Verificar que `src-tauri/` se crea **dentro** de la carpeta actual.
+
+3. **Instalar dependencias base:**
    ```bash
    pnpm add @prisma/client zod react-hook-form @hookform/resolvers \
             date-fns decimal.js sonner lucide-react recharts \
-            next-auth@beta @auth/prisma-adapter @node-rs/argon2
+            next-auth@beta @auth/prisma-adapter @node-rs/argon2 \
+            @tanstack/react-table next-themes
    pnpm add -D prisma prettier eslint-config-prettier @types/node tsx
    ```
-4. Inicializar Prisma: `pnpm prisma init --datasource-provider postgresql`.
-5. Instalar shadcn/ui: `pnpm dlx shadcn@latest init` con tema neutral, modo claro/oscuro habilitado.
-6. Configurar `tsconfig.json` con `strict: true` y `paths` (`@/*` → `src/*`).
-7. Crear estructura de carpetas según §3 del CLAUDE.md (carpetas vacías con `.gitkeep`).
-8. Crear `lib/prisma.ts` (singleton).
-9. Configurar scripts en `package.json`:
+
+4. **Inicializar Prisma:**
+   ```bash
+   pnpm prisma init --datasource-provider postgresql
+   ```
+
+5. **Instalar shadcn/ui:**
+   ```bash
+   pnpm dlx shadcn@latest init
+   ```
+   - Tema: neutral
+   - Habilitar modo claro/oscuro.
+
+6. **Configurar `tsconfig.json`:** asegurar `strict: true` y `paths` (`@/*` → `src/*`).
+
+7. **Crear estructura de carpetas** según §3 del CLAUDE.md (carpetas vacías con `.gitkeep` cuando aplique).
+
+8. **Crear `src/lib/prisma.ts`** (singleton de PrismaClient).
+
+9. **Configurar scripts en `package.json`:**
    ```json
    {
      "scripts": {
@@ -60,392 +99,370 @@ Cada feature debe terminar con un commit principal y, opcionalmente, varios comm
      }
    }
    ```
-10. `.gitignore` con `node_modules`, `.next`, `src-tauri/target`, `.env`, etc.
-11. `README.md` con instrucciones de instalación (Node, pnpm, PostgreSQL, etc.).
-12. `.env.example` con `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`.
 
-### Criterios de aceptación
-- [ ] `pnpm dev` levanta Next.js.
+10. **`.gitignore`** completo (Next.js + Tauri + Prisma + .env).
+
+11. **`README.md`** con guía de instalación (Node 20+, pnpm, PostgreSQL 16+, Rust, `createdb libreria`).
+
+12. **`.env.example`** con `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`.
+
+### Verificación manual
+- [ ] `pwd` confirma que estoy en la carpeta correcta (NO en una subcarpeta).
+- [ ] `ls` muestra `package.json`, `src/`, `prisma/`, `src-tauri/`, `CLAUDE.md`, `PLAN.md` todos al mismo nivel.
+- [ ] **NO existe** ninguna carpeta tipo `libreria/`, `libreria_temp/` o similar dentro o fuera.
+- [ ] `pnpm dev` levanta Next.js sin errores.
 - [ ] `pnpm tauri dev` abre la ventana nativa con la app.
 - [ ] `pnpm typecheck` y `pnpm lint` pasan sin errores.
-- [ ] El repo tiene la estructura de carpetas del CLAUDE.md.
 - [ ] PostgreSQL local creado (`createdb libreria`) y `DATABASE_URL` apunta a él.
+
+### Criterios de aceptación
 - [ ] Commit: `chore: setup inicial del proyecto`.
 
 ---
 
-## ✅ Feature 1 — Autenticación y Usuarios
+## ✅ Feature 1 — Autenticación (Login simple)
 
-**Objetivo:** Login por email/contraseña, roles ADMIN/EMPLEADO, protección de rutas.
+**Objetivo:** Login con username y contraseña, sin roles, con protección de rutas.
 
 ### Modelo
-- Tabla `User` (ya definida en §4 del CLAUDE.md).
-- `prisma migrate dev --name agregar-usuarios`.
+- Tabla `User` (definida en §4 del CLAUDE.md).
+- `pnpm prisma migrate dev --name agregar-tabla-usuarios`.
 
 ### Backend
-1. `lib/auth.ts`: configuración de Auth.js v5 con `CredentialsProvider`, adapter de Prisma, sesión en BD.
-2. `app/api/auth/[...nextauth]/route.ts`.
-3. `middleware.ts`: redirige a `/login` si no hay sesión, redirige a `/` si está logueado y accede a `/login`.
-4. `lib/permissions.ts`: helpers `isAdmin(user)`, `requireAdmin(user)` (lanza error si no).
-5. `features/usuarios/`:
-   - `schemas.ts` — `createUserSchema` y `loginSchema` con Zod.
-   - `actions.ts` — `createUser`, `updateUser`, `deactivateUser`, `changePassword`. Solo admin.
-   - `queries.ts` — `listUsers`, `getUserById`.
+1. `src/lib/auth.ts`: configuración de Auth.js v5 con `CredentialsProvider` (username + password), adapter de Prisma, sesión en BD.
+2. `src/app/api/auth/[...nextauth]/route.ts`.
+3. `src/middleware.ts`: redirige a `/login` si no hay sesión, redirige a `/` si está logueado y accede a `/login`.
+4. `src/features/usuarios/`:
+   - `schemas.ts` — `loginSchema` y `changePasswordSchema` con Zod.
+   - `actions.ts` — `changePassword`.
+   - `queries.ts` — `getCurrentUser`.
 
 ### UI
-1. `/login` — formulario con email + password, redirige a `/`.
-2. `/(dashboard)/usuarios` — tabla TanStack con CRUD básico, solo accesible a admin.
-3. Layout del dashboard: sidebar con navegación, topbar con menú de usuario (cerrar sesión, perfil).
-4. Tema claro/oscuro con shadcn (`ThemeProvider` + `next-themes`).
+1. `/login` — formulario simple: username + password → redirige a `/`.
+2. Layout del dashboard `(dashboard)/layout.tsx`: sidebar con navegación (Productos, Clientes, Ventas, Reportes), topbar con nombre del usuario y botón "Cerrar sesión".
+3. `/(dashboard)/perfil` — página simple con datos del usuario actual y opción de cambiar contraseña.
+4. Tema claro/oscuro con `next-themes` y toggle en el topbar.
 
 ### Seed
-- En `prisma/seed.ts`: crear usuario admin inicial con credenciales por defecto (`admin@libreria.local` / `admin123`), advertir en README que **debe cambiarse** en primer uso.
+- En `prisma/seed.ts`: crear usuario inicial `admin / admin123` con `name: "Administrador"`. Advertir en README que **debe cambiarse en primer uso**.
 
 ### Verificación manual
-- [ ] Login con admin del seed funciona.
-- [ ] Login con contraseña incorrecta muestra error claro.
 - [ ] Acceder a `/` sin sesión redirige a `/login`.
 - [ ] Acceder a `/login` con sesión activa redirige a `/`.
-- [ ] Admin puede crear un nuevo empleado.
-- [ ] Empleado **no ve** la sección "Usuarios" en el sidebar.
-- [ ] Empleado que intenta acceder a `/usuarios` por URL recibe error o redirección.
-- [ ] Logout funciona y limpia la sesión.
-- [ ] Recargar página mantiene la sesión.
-- [ ] Cambiar entre tema claro/oscuro funciona.
+- [ ] Login con `admin / admin123` funciona y lleva al dashboard.
+- [ ] Login con contraseña incorrecta muestra error claro.
+- [ ] Login con usuario inexistente muestra error claro (sin filtrar si existe o no).
+- [ ] El topbar muestra "Administrador" (el `name`, no el username).
+- [ ] Logout cierra la sesión y redirige a `/login`.
+- [ ] Recargar la página mantiene la sesión.
+- [ ] Cambiar contraseña desde `/perfil` funciona y requiere la contraseña actual.
+- [ ] Tras cambiar contraseña, el login con la anterior falla.
+- [ ] Tema claro/oscuro alterna correctamente.
 
 ### Criterios de aceptación
-- [ ] Passwords hasheados con argon2 (verificar en BD que no están en texto plano).
+- [ ] Passwords hasheados con argon2 (verificable en BD que no están en texto plano).
 - [ ] Sesión persistida en BD.
-- [ ] Commit principal: `feat: autenticación y gestión de usuarios`.
+- [ ] Commit principal: `feat: autenticación con login simple`.
 
 ---
 
-## ✅ Feature 2 — Configuración Global (Settings)
+## ✅ Feature 2 — Productos (Inventario)
 
-**Objetivo:** Página de ajustes donde el admin configura datos del negocio y la tasa de IVA global.
-
-### Modelo
-- Tabla `Settings` (singleton id=1).
-- Seed: crear fila inicial con `taxRate: 15.00`, `currency: 'USD'`.
-
-### Backend
-- `features/ajustes/`:
-  - `schemas.ts` — `updateSettingsSchema` (taxRate entre 0 y 100 con 2 decimales).
-  - `actions.ts` — `updateSettings` (solo admin).
-  - `queries.ts` — `getSettings` (cachea con `unstable_cache` de Next; invalidar al actualizar).
-- `lib/tax.ts` — `calculateLineTax(unitPrice, quantity, taxable, taxRate): Decimal`.
-
-### UI
-- `/(dashboard)/ajustes` — formulario con: nombre del negocio, RUC, dirección, teléfono, tasa de IVA, moneda (solo lectura, USD).
-- Solo accesible a admin.
-- Toast de confirmación al guardar.
-
-### Verificación manual
-- [ ] La fila `Settings` con `id=1` existe tras seed (verificable con `prisma studio`).
-- [ ] Admin puede cambiar nombre del negocio, RUC, dirección, teléfono.
-- [ ] Admin puede cambiar la tasa de IVA (probar con 12, 15, 0).
-- [ ] Empleado no puede acceder a `/ajustes`.
-- [ ] Valores inválidos en IVA (negativos, >100, no numéricos) se rechazan con mensaje claro.
-- [ ] Tras cambiar IVA, recargar la página muestra el valor actualizado.
-
-### Criterios de aceptación
-- [ ] Commit: `feat: configuración global del negocio e iva`.
-
----
-
-## ✅ Feature 3 — Categorías
-
-**Objetivo:** CRUD de categorías de productos (cuadernos, lápices, mochilas, libros de texto, etc.).
+**Objetivo:** CRUD básico de productos con código, nombre, precio de compra, precio de venta y ganancia calculada al vuelo.
 
 ### Modelo
-- Tabla `Category`.
+- Tabla `Product` (definida en §4 del CLAUDE.md).
+- El campo `stock` se crea con `@default(0)` pero **NO se usa, NO se muestra, NO se valida**. Es dormido.
+- `pnpm prisma migrate dev --name agregar-tabla-productos`.
 
 ### Backend
-- `features/categorias/` con `schemas`, `queries`, `actions`.
-- Validar: no se puede eliminar una categoría con productos asociados (bloquear con mensaje claro).
-
-### UI
-- `/(dashboard)/categorias` — tabla simple con CRUD.
-- Modal de creación/edición con react-hook-form + Zod.
-
-### Verificación manual
-- [ ] Crear categoría nueva funciona.
-- [ ] Editar nombre de categoría funciona.
-- [ ] Intentar crear categoría con nombre duplicado muestra error.
-- [ ] Eliminar categoría sin productos funciona.
-- [ ] Eliminar categoría con productos asociados se bloquea (este caso se verifica recién en Feature 4).
-- [ ] Empleado puede listar pero no crear/editar/eliminar.
-
-### Criterios de aceptación
-- [ ] Commit: `feat: gestión de categorías`.
-
----
-
-## ✅ Feature 4 — Productos e Inventario
-
-**Objetivo:** CRUD de productos, control de stock con movimientos auditables.
-
-### Modelo
-- Tablas `Product` y `StockMovement`.
-- Migración con índices en `sku`, `name`, `categoryId`.
-
-### Backend
-- `features/productos/`:
-  - `schemas.ts` — `createProductSchema`, `updateProductSchema`, `adjustStockSchema`.
+- `src/features/productos/`:
+  - `schemas.ts`:
+    - `createProductSchema` — code (string no vacío), name (string no vacío), purchasePrice (decimal positivo), salePrice (decimal positivo).
+    - `updateProductSchema` — todos los campos opcionales.
+    - Validación adicional: `salePrice >= purchasePrice` recomendado pero no obligatorio (warning, no error).
   - `actions.ts`:
-    - `createProduct(data)` — admin.
-    - `updateProduct(id, data)` — admin.
-    - `deactivateProduct(id)` — soft delete (active=false). Admin.
-    - `adjustStock(productId, quantity, reason)` — crea `StockMovement` con `type: AJUSTE`. Admin.
-    - `addStockEntry(productId, quantity, cost?)` — `type: ENTRADA`. Admin.
+    - `createProduct(data)` — valida con Zod, verifica que `code` no exista, crea producto.
+    - `updateProduct(id, data)` — valida y actualiza.
+    - `deleteProduct(id)` — bloquea si el producto tiene ventas asociadas (mensaje claro). Si no, elimina físicamente.
   - `queries.ts`:
-    - `listProducts({ search, categoryId, lowStock, page, pageSize })`.
-    - `getProductById(id)`.
-    - `getLowStockProducts()` — productos con `stock <= minStock`.
-    - `getStockMovements(productId)`.
+    - `listProducts({ search, page, pageSize })` — búsqueda por `code` o `name` (case-insensitive). Devuelve productos con `profit` calculado al vuelo.
+    - `getProductById(id)` — incluye `profit`.
+
+- `src/lib/money.ts`:
+  - `formatCurrency(value: Decimal): string` — formato `$ 1,234.56`.
+  - `calculateProfit(salePrice: Decimal, purchasePrice: Decimal): Decimal` — `salePrice.minus(purchasePrice)`.
+  - `calculateSaleTotal(unitPrice: Decimal, quantity: number): Decimal` — `unitPrice.times(quantity)`.
 
 ### UI
-- `/(dashboard)/productos` — tabla TanStack con búsqueda, filtros (categoría, stock bajo), paginación.
-- Botón "Nuevo producto" → modal/página con formulario completo.
-- Detalle del producto → ficha con info + historial de movimientos de stock.
-- Acción "Ajustar stock" → modal con cantidad (+/-) y motivo obligatorio.
-- Badge visual cuando `stock <= minStock` (color amarillo o rojo).
+- `/(dashboard)/productos`:
+  - Tabla TanStack con columnas: código, nombre, precio compra, precio venta, **ganancia (calculada)**, acciones (editar, eliminar).
+  - Buscador por código o nombre.
+  - Paginación.
+  - Botón "Nuevo producto".
+- Modal/página de creación: formulario con react-hook-form + Zod resolver.
+- Modal/página de edición: mismo formulario precargado.
+- Confirmación antes de eliminar.
+- Toast con sonner al crear/editar/eliminar.
 
 ### Verificación manual
-- [ ] Crear producto con todos los campos funciona.
-- [ ] Crear producto con SKU duplicado se rechaza.
-- [ ] Editar producto (precio, nombre, etc.) funciona.
-- [ ] Búsqueda por nombre funciona.
-- [ ] Búsqueda por SKU funciona.
-- [ ] Filtro por categoría funciona.
-- [ ] Filtro "stock bajo" muestra solo productos con `stock <= minStock`.
-- [ ] Ajustar stock manualmente (+10, -3) actualiza el stock y crea un `StockMovement`.
-- [ ] Intentar ajustar para dejar stock negativo se bloquea.
-- [ ] El historial de movimientos del producto se ve correctamente.
-- [ ] Producto desactivado no aparece en el listado por defecto (o tiene filtro "incluir inactivos").
-- [ ] Eliminar categoría con productos asociados ahora se bloquea correctamente.
-- [ ] Empleado solo puede listar; no puede crear, editar ni ajustar stock.
+- [ ] Crear producto con código, nombre, precio compra y precio venta funciona.
+- [ ] El listado muestra la ganancia correcta (precio venta - precio compra) sin haberla guardado.
+- [ ] Crear producto con código duplicado se rechaza con mensaje claro.
+- [ ] Crear producto con precio negativo se rechaza.
+- [ ] Crear producto con precio venta menor que precio compra muestra warning pero permite continuar.
+- [ ] Editar producto y ver el cambio reflejado al instante.
+- [ ] Búsqueda por código funciona (parcial, no exacta).
+- [ ] Búsqueda por nombre funciona (case-insensitive).
+- [ ] Paginación funciona si hay más de 10 productos.
+- [ ] Intentar eliminar un producto que NO tiene ventas: elimina correctamente.
+- [ ] El campo `stock` **NO aparece** en ningún formulario ni listado de la UI.
+- [ ] Verificar en `pnpm prisma studio` que `stock` se creó con valor 0 por defecto.
 
 ### Criterios de aceptación
-- [ ] Toda alteración de stock crea un `StockMovement` correspondiente (verificable en BD).
-- [ ] Commit: `feat: gestión de productos e inventario`.
+- [ ] El campo `stock` existe en BD pero está completamente oculto en la UI.
+- [ ] `profit` se calcula en runtime, NO se guarda en BD.
+- [ ] Commit principal: `feat: gestión de productos (inventario)`.
 
 ---
 
-## ✅ Feature 5 — Clientes
+## ✅ Feature 3 — Clientes
 
-**Objetivo:** CRUD de clientes con campos preparados para futura facturación SRI.
+**Objetivo:** CRUD básico de clientes con cédula opcional.
 
 ### Modelo
-- Tabla `Customer` con `idType`, `idNumber`, etc.
+- Tabla `Customer` (definida en §4 del CLAUDE.md).
+- `pnpm prisma migrate dev --name agregar-tabla-clientes`.
 
 ### Backend
-- `features/clientes/`:
-  - `schemas.ts` — validar cédula ecuatoriana (10 dígitos con dígito verificador), RUC (13 dígitos), pasaporte (alfanumérico), o consumidor final (sin idNumber).
-  - `actions.ts` — CRUD estándar.
-  - `queries.ts` — listado con búsqueda por nombre o idNumber.
-- `lib/validators/ecuador-id.ts` — algoritmo de validación de cédula ecuatoriana.
+- `src/features/clientes/`:
+  - `schemas.ts`:
+    - `createCustomerSchema`:
+      - `firstName`: string no vacío.
+      - `lastName`: string no vacío.
+      - `idNumber`: string opcional (sin validación SRI).
+      - `address`: string opcional.
+      - `phone`: string opcional.
+    - `updateCustomerSchema`: todos opcionales.
+  - `actions.ts`: `createCustomer`, `updateCustomer`, `deleteCustomer`.
+    - `deleteCustomer` bloquea si el cliente tiene ventas asociadas.
+  - `queries.ts`: `listCustomers({ search, page, pageSize })` — búsqueda por `firstName`, `lastName` o `idNumber`.
 
 ### UI
-- `/(dashboard)/clientes` — tabla con búsqueda + CRUD.
-- Detalle del cliente → datos + historial de compras (queda preparado, se llena cuando exista feature de ventas).
+- `/(dashboard)/clientes`:
+  - Tabla con columnas: cédula, nombres, apellidos, celular, dirección, acciones.
+  - Buscador por nombre, apellido o cédula.
+  - Paginación.
+  - Botón "Nuevo cliente".
+- Modal de creación/edición con formulario react-hook-form + Zod.
+- `/(dashboard)/clientes/[id]` — detalle del cliente con sus datos + listado de sus ventas (se llena tras Feature 4).
 
 ### Verificación manual
-- [ ] Crear cliente con cédula válida funciona.
-- [ ] Crear cliente con cédula inválida (dígito verificador incorrecto) se rechaza.
-- [ ] Crear cliente con RUC de 13 dígitos funciona.
-- [ ] Crear cliente "Consumidor final" sin idNumber funciona.
+- [ ] Crear cliente con todos los campos funciona.
+- [ ] Crear cliente solo con nombres y apellidos (sin cédula, sin dirección, sin celular) funciona.
+- [ ] Crear cliente sin nombres o apellidos se rechaza.
 - [ ] Editar cliente funciona.
-- [ ] Búsqueda por nombre y por número de identificación funciona.
-- [ ] Tanto admin como empleado pueden crear y editar clientes.
+- [ ] Búsqueda por nombre funciona.
+- [ ] Búsqueda por apellido funciona.
+- [ ] Búsqueda por cédula funciona.
+- [ ] Detalle del cliente muestra sus datos correctamente (la sección de ventas queda vacía por ahora).
 
 ### Criterios de aceptación
 - [ ] Commit: `feat: gestión de clientes`.
 
 ---
 
-## ✅ Feature 6 — Ventas (POS)
+## ✅ Feature 4 — Ventas
 
-**Objetivo:** El feature más crítico. Punto de venta para registrar ventas en efectivo, descontar stock, calcular IVA.
+**Objetivo:** Registrar ventas (un producto + un cliente + una cantidad), con número correlativo, cancelación opcional.
 
 ### Modelo
-- Tablas `Sale`, `SaleItem`, ya con `PaymentMethod` y `SaleStatus`.
+- Tabla `Sale` con enum `SaleStatus` (definida en §4 del CLAUDE.md).
+- `pnpm prisma migrate dev --name agregar-tabla-ventas`.
 
 ### Backend
-- `features/ventas/`:
-  - `schemas.ts` — `createSaleSchema` (lista de items con productId+quantity, customerId opcional, paymentMethod, cashReceived).
+- `src/features/ventas/`:
+  - `schemas.ts`:
+    - `createSaleSchema`:
+      - `productId`: string requerido.
+      - `quantity`: int positivo requerido.
+      - `customerId`: string opcional (consumidor final si no se envía).
+    - `cancelSaleSchema`:
+      - `cancelReason`: string requerido, mínimo 3 caracteres.
   - `actions.ts`:
-    - `createSale(data)` — **transacción Prisma crítica**:
+    - `createSale(data)`:
       1. Validar Zod.
-      2. Obtener `Settings.taxRate`.
-      3. Para cada item, validar que el producto esté activo y tenga stock suficiente.
-      4. Calcular líneas (subtotal, IVA, total) usando `lib/tax.ts`.
-      5. Crear `Sale` con `taxRate` congelado.
-      6. Crear los `SaleItem` con snapshot del nombre y precio.
-      7. Descontar stock de cada `Product`.
-      8. Crear un `StockMovement` por cada item (type: VENTA).
-      9. Calcular `cashChange = cashReceived - total`.
-      10. Devolver `Sale` con sus items.
-    - `cancelSale(id, reason)` — admin, transacción:
-      1. Marcar `Sale.status = CANCELADA`, `cancelledAt = now()`, `cancelReason`.
-      2. Por cada item, restaurar stock y crear `StockMovement` type: DEVOLUCION.
+      2. Buscar el producto, obtener `name` y `salePrice` actuales.
+      3. Tomar snapshot: `productName = product.name`, `unitPrice = product.salePrice`.
+      4. Calcular `total = unitPrice.times(quantity)` usando Decimal.js.
+      5. Tomar `userId` de la sesión.
+      6. Crear `Sale` con todos los campos. `status = COMPLETADA`.
+      7. Devolver la venta creada.
+    - `cancelSale(id, { cancelReason })`:
+      1. Validar Zod.
+      2. Verificar que la venta exista y esté en estado `COMPLETADA`.
+      3. Actualizar: `status = CANCELADA`, `cancelledAt = now()`, `cancelReason`.
+      4. **NO modificar stock** (campo dormido).
   - `queries.ts`:
-    - `listSales({ from, to, customerId, userId, status })`.
-    - `getSaleById(id)` con items y customer.
-    - `getTodaySales()`.
+    - `listSales({ from, to, customerId, userId, status, search, page, pageSize })`.
+    - `getSaleById(id)` — incluye `customer`, `user`, `product`.
+    - `getSalesByCustomer(customerId)` — para detalle de cliente.
 
 ### UI
-- `/(dashboard)/ventas/nueva` — POS:
-  - Buscador de productos (por nombre o SKU) → agregar al carrito.
-  - Carrito con líneas editables (cantidad), eliminación de línea.
-  - Selector de cliente (autocomplete o "Consumidor final").
-  - Resumen: subtotal, IVA, total.
-  - Campo "efectivo recibido" → calcula vuelto automáticamente.
-  - Botón "Cobrar y completar".
-  - Después de cobrar: pantalla de confirmación con opción de "imprimir tiquete" (HTML imprimible básico) y "nueva venta".
-- `/(dashboard)/ventas` — listado con filtros de fecha, estado, vendedor, cliente.
-- `/(dashboard)/ventas/[id]` — detalle de venta + botón "Cancelar venta" (solo admin) con modal de motivo.
+- `/(dashboard)/ventas`:
+  - Tabla con columnas: N° (saleNumber), fecha (createdAt formateada con date-fns en español), cliente, producto, cantidad, precio unitario, total, estado, acciones.
+  - Filtros: rango de fechas, cliente, estado (completada/cancelada/todas).
+  - Buscador por número de venta o nombre de producto.
+  - Botón "Nueva venta".
+- `/(dashboard)/ventas/nueva`:
+  - Formulario:
+    - Selector de cliente (autocomplete con búsqueda; opción "consumidor final" deja `customerId = null`).
+    - Selector de producto (autocomplete con búsqueda por código o nombre).
+    - Cantidad (input numérico).
+    - Vista previa: muestra precio unitario, total calculado en vivo.
+  - Botón "Registrar venta".
+  - Tras registrar: redirige al detalle de la venta con mensaje de éxito.
+- `/(dashboard)/ventas/[id]`:
+  - Muestra todos los datos: número, fecha, cliente, producto (con snapshot del nombre), cantidad, precio unitario, total, estado.
+  - Si está COMPLETADA: botón "Cancelar venta" → modal con campo `cancelReason` obligatorio.
+  - Si está CANCELADA: muestra fecha de cancelación y motivo.
+- En `/(dashboard)/clientes/[id]`: completar la sección de ventas del cliente (listado simple).
 
-### Verificación manual (crítica — este es el feature más sensible)
-- [ ] Crear venta de un solo producto: stock decrementa correctamente.
-- [ ] Crear venta de varios productos en una sola operación: stocks individuales decrementan.
-- [ ] Crear venta con `customerId` (cliente específico) funciona.
-- [ ] Crear venta sin cliente (consumidor final implícito) funciona.
-- [ ] Crear venta de producto sin stock suficiente: se bloquea con error claro y NO descuenta nada.
-- [ ] Verificar que la venta crea un `StockMovement` por cada item (revisar en `prisma studio`).
-- [ ] **Congelado de IVA:** crear una venta con IVA=15%, luego cambiar Settings.taxRate a 12%, recargar el detalle de la venta anterior → el IVA mostrado sigue siendo 15%.
-- [ ] **Producto exento (taxable=false):** crear un producto con `taxable: false`, venderlo solo, verificar que `taxAmount = 0` y `lineTax = 0`.
-- [ ] **Venta mixta:** vender en la misma transacción un producto gravado y uno exento → solo el gravado suma IVA.
-- [ ] Cálculo de vuelto: efectivo recibido = $20, total = $13.45, vuelto = $6.55.
-- [ ] Efectivo recibido menor al total: se rechaza con mensaje claro.
-- [ ] Tiquete imprimible muestra: nombre del negocio, número de venta, fecha, items con cantidades y precios, subtotal, IVA, total, efectivo, vuelto, vendedor.
-- [ ] Listado de ventas con filtro de fecha funciona.
-- [ ] Listado de ventas filtrado por empleado funciona.
-- [ ] **Cancelar venta:** admin puede cancelar; tras cancelar, el stock de cada producto se restaura al valor previo.
-- [ ] **Cancelar venta:** se crean `StockMovement` con type DEVOLUCION.
-- [ ] **Cancelar venta sin motivo:** se rechaza.
-- [ ] Empleado **no ve** el botón "Cancelar venta".
-- [ ] Empleado que intenta cancelar por URL/API recibe error de permisos.
-- [ ] Búsqueda de productos en POS es rápida y precisa.
+### Verificación manual
+- [ ] Crear venta con cliente y producto funciona.
+- [ ] Crear venta sin cliente (consumidor final) funciona.
+- [ ] El `total` calculado coincide con `unitPrice * quantity`.
+- [ ] Si cambio el precio del producto DESPUÉS de la venta, el detalle de la venta sigue mostrando el precio original (snapshot).
+- [ ] Si cambio el nombre del producto, el detalle de la venta muestra el nombre original (snapshot).
+- [ ] El `saleNumber` se incrementa correctamente (001, 002, 003...).
+- [ ] El listado muestra la fecha en formato legible en español (ej: "26 de mayo de 2026").
+- [ ] Filtro por rango de fechas funciona.
+- [ ] Filtro por cliente funciona.
+- [ ] Filtro por estado funciona.
+- [ ] Cancelar venta con motivo válido funciona.
+- [ ] Cancelar venta sin motivo (o motivo < 3 caracteres) se rechaza.
+- [ ] Venta cancelada NO se puede volver a cancelar.
+- [ ] La cantidad de stock del producto **no cambia** tras vender (verificable en `prisma studio`).
+- [ ] La cantidad de stock del producto **no cambia** tras cancelar la venta.
+- [ ] En el detalle del cliente, sus ventas aparecen listadas.
 
 ### Criterios de aceptación
-- [ ] La venta es atómica: nunca queda stock descontado sin Sale, ni viceversa.
-- [ ] Empleado puede vender; solo admin puede cancelar.
-- [ ] Commit principal: `feat: punto de venta (POS) con descuento de stock`.
+- [ ] Toda venta crea snapshots de `productName` y `unitPrice`.
+- [ ] `total` se calcula con Decimal.js, nunca con Number.
+- [ ] `stock` del producto **NO se modifica** en ningún momento.
+- [ ] Commit principal: `feat: registro y cancelación de ventas`.
 
 ---
 
-## ✅ Feature 7 — Dashboard
+## ✅ Feature 5 — Dashboard
 
-**Objetivo:** Página principal con KPIs en tiempo real.
+**Objetivo:** Página principal con KPIs simples.
 
 ### Backend
-- `features/dashboard/queries.ts`:
-  - `getTodayStats()` — ventas de hoy (count, total).
-  - `getWeekStats()` — ventas últimos 7 días.
-  - `getMonthStats()` — mes actual.
-  - `getLowStockCount()` — productos con stock bajo.
-  - `getTopProducts({ from, to, limit })`.
-  - `getSalesByDay({ from, to })` — para gráfico.
+- `src/features/dashboard/queries.ts`:
+  - `getTodaySalesCount()` — número de ventas completadas hoy.
+  - `getTodaySalesTotal()` — suma de totales de ventas completadas hoy.
+  - `getMonthSalesTotal()` — suma del mes actual.
+  - `getTotalProducts()` — count de productos.
+  - `getTotalCustomers()` — count de clientes.
+  - `getSalesByDayLast30()` — array de `{ date, total }` últimos 30 días para gráfico.
+  - `getTopProductsThisMonth(limit = 5)` — top productos por unidades vendidas o por total facturado.
 
 ### UI
 - `/(dashboard)/` (home):
-  - 4 cards: ventas hoy, ventas semana, ventas mes, productos en stock bajo (con enlace).
-  - Gráfico de línea con ventas por día (últimos 30 días) usando Recharts.
-  - Top 5 productos más vendidos del mes.
-- Solo admin ve cards de ingresos; empleado ve solo "ventas hoy" y stock bajo.
+  - 4 cards: ventas hoy (count + total), ventas del mes (total), productos registrados, clientes registrados.
+  - Gráfico de líneas con ventas por día (últimos 30 días) usando Recharts.
+  - Tabla con top 5 productos más vendidos del mes.
+- Ventas canceladas se **excluyen** de todos los cálculos.
 
 ### Verificación manual
-- [ ] Las cifras del dashboard coinciden con las del listado de ventas (mismo período).
-- [ ] Crear una nueva venta y refrescar el dashboard → "ventas hoy" aumenta.
-- [ ] Ventas canceladas NO se suman a los totales (o se ven aparte si decides mostrarlas).
-- [ ] El gráfico muestra correctamente los últimos 30 días.
-- [ ] Top productos refleja los productos realmente más vendidos.
-- [ ] Empleado ve dashboard recortado (sin montos de ingresos).
+- [ ] Las cifras del dashboard coinciden con las del listado de ventas filtrado.
+- [ ] Crear una nueva venta → "ventas hoy" aumenta tras refrescar.
+- [ ] Cancelar una venta → su monto se resta del total.
+- [ ] El gráfico muestra los últimos 30 días correctamente (días sin ventas aparecen en 0).
+- [ ] Top productos refleja realmente los más vendidos.
+- [ ] Si no hay ventas todavía, el dashboard muestra ceros sin errores.
 
 ### Criterios de aceptación
-- [ ] Commit: `feat: dashboard con KPIs y gráficos`.
+- [ ] Commit: `feat: dashboard con KPIs y gráfico de ventas`.
 
 ---
 
-## ✅ Feature 8 — Reportes
+## ✅ Feature 6 — Reportes (por día y por mes)
 
-**Objetivo:** Reportes detallados con filtros, solo accesibles a admin.
+**Objetivo:** Reportes detallados de ventas basados en `Sale.createdAt`.
 
 ### Backend
-- `features/reportes/queries.ts`:
-  - `salesReport({ from, to, groupBy: 'day'|'week'|'month' })`.
-  - `productsReport({ from, to })` — unidades vendidas, ingresos por producto.
-  - `categoriesReport({ from, to })`.
-  - `employeesReport({ from, to })` — ventas por empleado.
-  - `stockMovementsReport({ from, to, productId? })`.
+- `src/features/reportes/queries.ts`:
+  - `dailySalesReport({ from, to })`:
+    - Agrupa ventas COMPLETADAS por día.
+    - Devuelve array de `{ date, salesCount, totalAmount }`.
+  - `monthlySalesReport({ year })`:
+    - Agrupa ventas COMPLETADAS por mes para un año dado.
+    - Devuelve array de 12 elementos `{ month, salesCount, totalAmount }`.
+  - `productsReport({ from, to })`:
+    - Por producto: unidades vendidas, ingresos totales, ganancia total (calculada).
+  - `customersReport({ from, to })`:
+    - Por cliente: número de compras, total gastado.
+  - `usersReport({ from, to })`:
+    - Por usuario (vendedor): número de ventas, total facturado.
 
 ### UI
 - `/(dashboard)/reportes`:
-  - Tabs: Ventas, Productos, Categorías, Empleados, Movimientos de stock.
-  - Filtros de fecha (date-range picker).
-  - Tablas + gráficos según el reporte.
-- Solo admin.
+  - Tabs:
+    - **Ventas por día** — date-range picker, tabla + gráfico de barras.
+    - **Ventas por mes** — selector de año, tabla de 12 meses + gráfico.
+    - **Productos** — date-range picker, tabla con código, nombre, unidades vendidas, ingresos, ganancia.
+    - **Clientes** — date-range picker, tabla con cliente, compras, total.
+    - **Usuarios** — date-range picker, tabla con usuario, ventas, total.
+  - Filtros con date-fns y `locale: es`.
+  - Todos los reportes **excluyen ventas canceladas** por defecto.
+  - Opción visible: "Incluir canceladas" (checkbox) que cambia la query.
 
 ### Verificación manual
-- [ ] Filtros de fecha (hoy, esta semana, este mes, rango custom) funcionan.
-- [ ] Reporte de ventas agrupado por día/semana/mes suma correctamente.
-- [ ] Reporte de productos muestra unidades vendidas e ingresos.
-- [ ] Reporte de empleados muestra ventas por vendedor.
-- [ ] Reporte de movimientos de stock filtra por producto opcionalmente.
-- [ ] Ventas canceladas se manejan según la decisión (excluidas o mostradas aparte).
-- [ ] Empleado no puede acceder a `/reportes`.
+- [ ] Reporte por día con rango "hoy" muestra solo las ventas de hoy.
+- [ ] Reporte por día con rango "este mes" suma correctamente.
+- [ ] Reporte por mes con año actual muestra los 12 meses (con 0 en los meses sin ventas).
+- [ ] Reporte de productos muestra correctamente unidades, ingresos y ganancia (`(salePrice - purchasePrice) * cantidad`).
+- [ ] Reporte de clientes ignora ventas sin cliente (consumidor final) o las agrupa como "Consumidor final".
+- [ ] Reporte de usuarios atribuye las ventas al usuario logueado en cada una.
+- [ ] Activar "incluir canceladas" cambia los totales.
+- [ ] Cambiar el rango de fechas refresca todos los datos.
 
 ### Criterios de aceptación
-- [ ] Commit: `feat: módulo de reportes`.
+- [ ] Reportes funcionan correctamente con datos sembrados (al menos 5-10 ventas en distintas fechas).
+- [ ] Commit: `feat: módulo de reportes por día, mes, productos, clientes y usuarios`.
 
 ---
 
-## ✅ Feature 9 — Alertas de Stock Bajo
-
-**Objetivo:** Notificación visible cuando hay productos con stock crítico.
-
-### UI
-- Badge en sidebar junto al ítem "Productos" con el contador.
-- Toast/sonner al iniciar sesión si hay productos en stock bajo.
-- Página dedicada `/productos?filter=stock-bajo` ya existe del feature 4; reforzar el filtro.
-
-### Backend
-- Reutilizar `getLowStockProducts()` y `getLowStockCount()` ya creados.
-
-### Verificación manual
-- [ ] Bajar el stock de un producto a un valor <= minStock → aparece en el contador.
-- [ ] Al hacer login con productos en stock bajo, aparece toast/notificación.
-- [ ] Tras vender un producto y dejarlo bajo el umbral, el contador se actualiza al recargar.
-- [ ] El badge desaparece cuando no hay productos en stock bajo.
-
-### Criterios de aceptación
-- [ ] Commit: `feat: alertas de stock bajo`.
-
----
-
-## ✅ Feature 10 — Empaquetado Tauri y Release
+## ✅ Feature 7 — Empaquetado Tauri y Release
 
 **Objetivo:** Generar instalador `.msi` (Windows), `.dmg` (macOS) o `.deb` (Linux) según el SO objetivo.
 
 ### Pasos
-1. Verificar que `next build` y `next start` funcionan bien empaquetados (o usar Tauri con sidecar para servidor Next embebido).
-2. Configurar `tauri.conf.json`:
-   - `productName`, `version`, `identifier`.
+1. Verificar que `next build` y `next start` funcionan empaquetados (o usar Tauri con sidecar para servidor Next embebido).
+2. Configurar `src-tauri/tauri.conf.json`:
+   - `productName`: "Librería"
+   - `version`: "1.0.0"
+   - `identifier`: "com.libreria.app" (o el que prefiera el usuario)
    - Iconos en `src-tauri/icons/`.
    - Bundle targets según SO.
 3. Probar `pnpm tauri build` → instalador generado.
-4. Documentar en README el proceso de release y los requisitos (PostgreSQL local debe estar instalado por el usuario; o, alternativamente, evaluar embeber PostgreSQL portable — **decisión a discutir con el usuario**).
+4. Documentar en README:
+   - Cómo instalar PostgreSQL en la máquina destino.
+   - Cómo crear la BD `libreria` y configurar el `.env`.
+   - Cómo correr las migraciones iniciales (`pnpm prisma migrate deploy`).
+   - Cómo correr el seed.
 
 ### Verificación manual
 - [ ] Instalador se genera sin errores.
-- [ ] Instalar el `.msi` / `.dmg` / `.deb` en una máquina limpia.
+- [ ] Instalar el `.msi` / `.dmg` / `.deb` en una máquina limpia (o VM).
 - [ ] Tras instalar, la app arranca, conecta a PostgreSQL local y funciona.
-- [ ] Probar el flujo completo: login → crear producto → vender → ver reporte.
+- [ ] Flujo completo en la app instalada: login → crear producto → crear cliente → registrar venta → ver reporte.
 
 ### Criterios de aceptación
-- [ ] README actualizado con guía de instalación para el usuario final.
-- [ ] Commit: `chore: empaquetado tauri para release`.
+- [ ] README actualizado con guía completa de instalación para el usuario final.
+- [ ] Commit: `chore: empaquetado tauri para release v1.0.0`.
 
 ---
 
@@ -457,3 +474,4 @@ Cada feature debe terminar con un commit principal y, opcionalmente, varios comm
 - Si en cualquier momento se descubre que el modelo de datos necesita un cambio que afecta features ya cerradas, **detener todo, documentar el cambio, hacer migración y notificar al usuario** antes de proseguir.
 - Mantener `CLAUDE.md` y `PLAN.md` sincronizados con la realidad del repo. Si se cambia algo grande, actualizar ambos en el mismo commit.
 - **No se incluyen tests automatizados en este proyecto** por decisión explícita del usuario. La validación con Zod y la verificación manual son las únicas líneas de defensa de calidad.
+- **El campo `stock` está dormido** durante todas las features de esta versión. Si en el futuro se necesita activar el control de stock, será una nueva feature aparte (v2).
