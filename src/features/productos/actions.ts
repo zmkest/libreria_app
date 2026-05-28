@@ -51,18 +51,25 @@ export async function updateProduct(
     }
   }
 
-  const product = await prisma.product.update({
-    where: { id },
-    data: {
-      ...(code && { code }),
-      ...(name && { name }),
-      ...(purchasePrice !== undefined && { purchasePrice }),
-      ...(salePrice !== undefined && { salePrice }),
-    },
-    select: { id: true },
-  });
-
-  return { success: true, data: { id: product.id } };
+  try {
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        ...(code && { code }),
+        ...(name && { name }),
+        ...(purchasePrice !== undefined && { purchasePrice }),
+        ...(salePrice !== undefined && { salePrice }),
+      },
+      select: { id: true },
+    });
+    return { success: true, data: { id: product.id } };
+  } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === "P2025") {
+      return { success: false, error: "El producto ya no existe. Puede haber sido eliminado." };
+    }
+    throw e;
+  }
 }
 
 export async function deleteProduct(

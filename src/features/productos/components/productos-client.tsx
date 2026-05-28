@@ -29,6 +29,7 @@ export function ProductosClient({ products }: Props) {
     const result = await deleteProduct(id);
     if (result.success) {
       toast.success(`Producto "${name}" eliminado`);
+      if (editingProduct?.id === id) setEditingProduct(null);
       router.refresh();
     } else {
       toast.error(result.error);
