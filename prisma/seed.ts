@@ -84,6 +84,123 @@ async function main() {
 
   console.log(`${clientes.length} clientes sembrados.`);
   console.log(`${productos.length} productos sembrados.`);
+
+  // Ventas — solo se crean si no existen todavía
+  const ventasExistentes = await prisma.sale.count();
+  if (ventasExistentes < 10) {
+    const user    = await prisma.user.findUniqueOrThrow({ where: { username: "admin" } });
+    const prods   = await prisma.product.findMany({ select: { id: true, name: true, salePrice: true } });
+    const custs   = await prisma.customer.findMany({ select: { id: true } });
+
+    const p = (code: string) => prods.find((x) => x.name.toLowerCase().includes(code.toLowerCase()))!;
+    const c = (idx: number) => custs[idx % custs.length].id;
+
+    function daysAgo(n: number): Date {
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      d.setHours(9 + (n % 8), (n * 7) % 60, 0, 0);
+      return d;
+    }
+
+    const ventas = [
+      // Hoy
+      { prod: p("cuaderno universitario"), qty: 3,  custId: c(0),  daysBack: 0 },
+      { prod: p("lápiz hb"),               qty: 2,  custId: c(1),  daysBack: 0 },
+      { prod: p("bolígrafo azul"),          qty: 5,  custId: null,  daysBack: 0 },
+      { prod: p("regla"),                   qty: 1,  custId: c(2),  daysBack: 0 },
+      // Ayer
+      { prod: p("mochila escolar mediana"), qty: 1,  custId: c(3),  daysBack: 1 },
+      { prod: p("cuaderno cuadriculado"),   qty: 4,  custId: c(4),  daysBack: 1 },
+      { prod: p("pegamento en barra"),      qty: 2,  custId: null,  daysBack: 1 },
+      // Hace 2 días
+      { prod: p("texto de matemáticas"),    qty: 1,  custId: c(5),  daysBack: 2 },
+      { prod: p("texto de lenguaje"),       qty: 1,  custId: c(6),  daysBack: 2 },
+      { prod: p("lápiz de color"),          qty: 2,  custId: c(7),  daysBack: 2 },
+      // Hace 3 días
+      { prod: p("compás"),                  qty: 1,  custId: c(8),  daysBack: 3 },
+      { prod: p("tijera"),                  qty: 3,  custId: null,  daysBack: 3 },
+      { prod: p("carpeta plástica"),        qty: 2,  custId: c(9),  daysBack: 3 },
+      // Hace 5 días
+      { prod: p("bolígrafo negro"),         qty: 10, custId: c(10), daysBack: 5 },
+      { prod: p("borrador"),                qty: 5,  custId: c(11), daysBack: 5 },
+      { prod: p("cuaderno espiral"),        qty: 2,  custId: c(12), daysBack: 5 },
+      // Hace 7 días
+      { prod: p("mochila escolar grande"),  qty: 1,  custId: c(13), daysBack: 7 },
+      { prod: p("carpeta de cartón"),       qty: 6,  custId: null,  daysBack: 7 },
+      { prod: p("goma de pegar"),           qty: 3,  custId: c(14), daysBack: 7 },
+      // Hace 10 días
+      { prod: p("cuaderno universitario"),  qty: 5,  custId: c(15), daysBack: 10 },
+      { prod: p("lápiz hb"),               qty: 4,  custId: c(16), daysBack: 10 },
+      // Hace 15 días
+      { prod: p("texto de matemáticas"),    qty: 2,  custId: c(17), daysBack: 15 },
+      { prod: p("texto de lenguaje"),       qty: 2,  custId: c(18), daysBack: 15 },
+      { prod: p("bolígrafo rojo"),          qty: 8,  custId: null,  daysBack: 15 },
+      // Hace 20 días
+      { prod: p("regla"),                   qty: 4,  custId: c(0),  daysBack: 20 },
+      { prod: p("compás"),                  qty: 2,  custId: c(1),  daysBack: 20 },
+      { prod: p("pegamento en barra"),      qty: 5,  custId: c(2),  daysBack: 20 },
+      // Hace 25 días
+      { prod: p("mochila escolar mediana"), qty: 2,  custId: c(3),  daysBack: 25 },
+      { prod: p("cuaderno cuadriculado"),   qty: 6,  custId: null,  daysBack: 25 },
+      // Hace 30 días
+      { prod: p("lápiz de color"),          qty: 3,  custId: c(4),  daysBack: 30 },
+      { prod: p("carpeta plástica"),        qty: 4,  custId: c(5),  daysBack: 30 },
+      { prod: p("borrador"),                qty: 10, custId: c(6),  daysBack: 30 },
+    ];
+
+    for (const v of ventas) {
+      if (!v.prod) continue;
+      const unitPrice = Number(v.prod.salePrice);
+      const total     = (unitPrice * v.qty).toFixed(2);
+      await prisma.sale.create({
+        data: {
+          userId:      user.id,
+          productId:   v.prod.id,
+          productName: v.prod.name,
+          unitPrice:   unitPrice.toFixed(2),
+          quantity:    v.qty,
+          total,
+          customerId:  v.custId,
+          status:      "COMPLETADA",
+          createdAt:   daysAgo(v.daysBack),
+        },
+      });
+    }
+
+    // 3 ventas canceladas para probar filtros
+    const canceladas = [
+      { prod: p("mochila escolar grande"), qty: 1, custId: c(7), daysBack: 4,  reason: "El cliente cambió de opinión" },
+      { prod: p("texto de matemáticas"),   qty: 1, custId: null, daysBack: 12, reason: "Producto en mal estado" },
+      { prod: p("cuaderno espiral"),        qty: 2, custId: c(8), daysBack: 22, reason: "Error en el registro" },
+    ];
+
+    for (const v of canceladas) {
+      if (!v.prod) continue;
+      const unitPrice = Number(v.prod.salePrice);
+      const total     = (unitPrice * v.qty).toFixed(2);
+      const createdAt = daysAgo(v.daysBack);
+      await prisma.sale.create({
+        data: {
+          userId:       user.id,
+          productId:    v.prod.id,
+          productName:  v.prod.name,
+          unitPrice:    unitPrice.toFixed(2),
+          quantity:     v.qty,
+          total,
+          customerId:   v.custId,
+          status:       "CANCELADA",
+          cancelReason: v.reason,
+          cancelledAt:  new Date(createdAt.getTime() + 3600_000),
+          createdAt,
+        },
+      });
+    }
+
+    console.log(`${ventas.length + canceladas.length} ventas sembradas.`);
+  } else {
+    console.log(`Ventas ya existen (${ventasExistentes}), se omite el seed de ventas.`);
+  }
+
   console.log("Seed completado. Usuario: admin / admin123");
   console.log("IMPORTANTE: cambie la contraseña en el primer uso.");
 }
