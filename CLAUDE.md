@@ -117,47 +117,92 @@ libreria_app/                    ← carpeta donde está CLAUDE.md y se ejecuta 
 └── src/
     ├── app/                     ← Next.js App Router
     │   ├── (auth)/
+    │   │   ├── layout.tsx
     │   │   └── login/
+    │   │       ├── page.tsx
+    │   │       └── components/
+    │   │           └── login-form.tsx
     │   ├── (dashboard)/
     │   │   ├── layout.tsx       ← sidebar + topbar
     │   │   ├── page.tsx         ← dashboard
     │   │   ├── productos/
+    │   │   │   └── page.tsx
     │   │   ├── ventas/
+    │   │   │   ├── page.tsx
+    │   │   │   ├── nueva/
+    │   │   │   │   └── page.tsx
+    │   │   │   └── [id]/
+    │   │   │       └── page.tsx
     │   │   ├── clientes/
+    │   │   │   └── page.tsx
     │   │   └── reportes/
+    │   │       └── page.tsx
     │   ├── api/
     │   │   └── auth/[...nextauth]/route.ts
     │   ├── layout.tsx
-    │   └── globals.css
+    │   ├── globals.css
+    │   └── favicon.ico
     ├── components/
-    │   ├── ui/                  ← shadcn/ui (generados por CLI)
-    │   └── shared/              ← componentes propios reutilizables
+    │   ├── ui/                  ← shadcn/ui (button, input, label)
+    │   └── shared/              ← componentes reutilizables propios
+    │       ├── navbar.tsx
+    │       └── theme-provider.tsx
     ├── features/                ← lógica por dominio
     │   ├── productos/
+    │   │   ├── actions.ts
+    │   │   ├── queries.ts
+    │   │   ├── schemas.ts
+    │   │   └── components/
+    │   │       ├── producto-form.tsx
+    │   │       ├── productos-client.tsx
+    │   │       └── productos-table.tsx
     │   ├── ventas/
+    │   │   ├── actions.ts
+    │   │   ├── queries.ts
+    │   │   ├── schemas.ts
+    │   │   └── components/
+    │   │       ├── nueva-venta-form.tsx
+    │   │       ├── searchable-select.tsx
+    │   │       ├── venta-detalle.tsx
+    │   │       ├── ventas-filtros.tsx
+    │   │       └── ventas-tabla.tsx
     │   ├── clientes/
+    │   │   ├── actions.ts
+    │   │   ├── queries.ts
+    │   │   ├── schemas.ts
+    │   │   └── components/
+    │   │       ├── cliente-form.tsx
+    │   │       ├── clientes-client.tsx
+    │   │       └── clientes-table.tsx
     │   ├── reportes/
+    │   │   ├── queries.ts
+    │   │   └── components/
+    │   │       ├── reporte-filtros.tsx
+    │   │       └── reporte-tabla.tsx
     │   └── usuarios/
+    │       ├── actions.ts
+    │       ├── queries.ts
+    │       └── schemas.ts
+    ├── generated/
+    │   └── prisma/              ← cliente Prisma generado (no editar)
     ├── lib/
-    │   ├── prisma.ts            ← singleton de PrismaClient
+    │   ├── auth.config.ts
     │   ├── auth.ts              ← config de Auth.js
     │   ├── money.ts             ← helpers para Decimal
+    │   ├── prisma.ts            ← singleton de PrismaClient
     │   └── utils.ts             ← cn() y utilidades
-    ├── server/
-    │   └── actions/             ← Server Actions agrupadas
-    ├── hooks/
     ├── types/
-    └── middleware.ts            ← protección de rutas
+    │   └── next-auth.d.ts       ← extensión de tipos de Auth.js
+    └── proxy.ts                 ← middleware de protección de rutas
 ```
 
 > **Regla:** Cada feature vive en `src/features/<nombre>/` con esta estructura interna:
 > ```
-> features/productos/
+> features/<nombre>/
 > ├── schemas.ts        ← Zod schemas
-> ├── types.ts          ← tipos derivados
 > ├── queries.ts        ← lectura (Server, usa prisma)
 > ├── actions.ts        ← Server Actions (escritura)
-> └── components/       ← componentes específicos
+> └── components/       ← componentes específicos del feature
 > ```
 
 ---
