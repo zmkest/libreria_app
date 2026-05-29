@@ -1,13 +1,12 @@
 # Sistema de Gestión de Inventario — Librería Escolar
 
-Aplicación de escritorio (Tauri + Next.js) para gestión de inventario, ventas y clientes de una librería escolar en Ecuador.
+Aplicación web local (Next.js) para gestión de inventario, ventas y clientes de una librería escolar en Ecuador.
 
 ## Requisitos previos
 
 - **Node.js** 20+ — [nodejs.org](https://nodejs.org)
 - **pnpm** — `npm install -g pnpm`
 - **PostgreSQL** 16+ — [postgresql.org](https://www.postgresql.org/download/)
-- **Rust** (para compilar Tauri) — [rustup.rs](https://rustup.rs)
 
 ## Instalación
 
@@ -63,11 +62,7 @@ pnpm prisma generate
 ## Desarrollo
 
 ```bash
-# Solo Next.js (web)
 pnpm dev
-
-# Next.js + ventana Tauri nativa
-pnpm tauri dev
 ```
 
 ## Comandos útiles
@@ -78,16 +73,16 @@ pnpm typecheck     # TypeScript sin emitir
 pnpm prisma studio # GUI de base de datos
 ```
 
-## Build / Release
+## Build
 
 ```bash
-pnpm tauri build   # Genera instalador nativo (.msi / .deb / .dmg)
+pnpm build    # Next.js production build
+pnpm start    # Iniciar en modo producción
 ```
 
 ## Stack
 
 - **Next.js 15+** con App Router y Server Components
-- **Tauri 2.x** para escritorio offline
 - **PostgreSQL** local + **Prisma ORM**
 - **Auth.js v5** para autenticación
 - **Tailwind CSS v4** + **shadcn/ui**

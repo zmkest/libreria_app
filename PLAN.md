@@ -16,7 +16,7 @@ Cada feature está dividida en estas etapas:
 1. **Modelo** — cambios en `prisma/schema.prisma` + migración.
 2. **Backend** — Server Actions, queries, validaciones Zod.
 3. **UI** — páginas, formularios, tablas.
-4. **Verificación manual** — pruebas en el navegador/Tauri de los flujos descritos.
+4. **Verificación manual** — pruebas en el navegador de los flujos descritos.
 5. **Checkpoint** — preguntar al usuario antes de cerrar y commitear.
 
 Cada feature debe terminar con un commit principal y, opcionalmente, varios commits parciales.
@@ -46,19 +46,7 @@ El usuario ya creó una carpeta (ej: `libreria_app/`), colocó `CLAUDE.md` y `PL
    - Cuando pregunte si está bien usar el directorio no vacío, responder **sí**.
    - Cuando pregunte por turbopack, elegir según preferencia (recomendado: sí).
 
-2. **Configurar Tauri 2:**
-   ```bash
-   pnpm add -D @tauri-apps/cli
-   pnpm tauri init
-   ```
-   - App name: "Librería"
-   - Window title: "Sistema de Inventario"
-   - `beforeDevCommand`: `"pnpm dev"`
-   - `devUrl`: `"http://localhost:3000"`
-   - `frontendDist`: `"../out"` (o lo que corresponda según modo de build)
-   - Verificar que `src-tauri/` se crea **dentro** de la carpeta actual.
-
-3. **Instalar dependencias base:**
+2. **Instalar dependencias base:**
    ```bash
    pnpm add @prisma/client zod react-hook-form @hookform/resolvers \
             date-fns decimal.js sonner lucide-react recharts \
@@ -94,24 +82,22 @@ El usuario ya creó una carpeta (ej: `libreria_app/`), colocó `CLAUDE.md` y `PL
        "start": "next start",
        "lint": "next lint",
        "typecheck": "tsc --noEmit",
-       "db:seed": "tsx prisma/seed.ts",
-       "tauri": "tauri"
+       "db:seed": "tsx prisma/seed.ts"
      }
    }
    ```
 
-10. **`.gitignore`** completo (Next.js + Tauri + Prisma + .env).
+10. **`.gitignore`** completo (Next.js + Prisma + .env).
 
-11. **`README.md`** con guía de instalación (Node 20+, pnpm, PostgreSQL 16+, Rust, `createdb libreria`).
+11. **`README.md`** con guía de instalación (Node 20+, pnpm, PostgreSQL 16+, `createdb libreria`).
 
 12. **`.env.example`** con `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`.
 
 ### Verificación manual
 - [ ] `pwd` confirma que estoy en la carpeta correcta (NO en una subcarpeta).
-- [ ] `ls` muestra `package.json`, `src/`, `prisma/`, `src-tauri/`, `CLAUDE.md`, `PLAN.md` todos al mismo nivel.
+- [ ] `ls` muestra `package.json`, `src/`, `prisma/`, `CLAUDE.md`, `PLAN.md` todos al mismo nivel.
 - [ ] **NO existe** ninguna carpeta tipo `libreria/`, `libreria_temp/` o similar dentro o fuera.
 - [ ] `pnpm dev` levanta Next.js sin errores.
-- [ ] `pnpm tauri dev` abre la ventana nativa con la app.
 - [ ] `pnpm typecheck` y `pnpm lint` pasan sin errores.
 - [ ] PostgreSQL local creado (`createdb libreria`) y `DATABASE_URL` apunta a él.
 
@@ -435,34 +421,14 @@ El usuario ya creó una carpeta (ej: `libreria_app/`), colocó `CLAUDE.md` y `PL
 
 ---
 
-## ✅ Feature 7 — Empaquetado Tauri y Release
+## Feature 7 — Distribución (por definir)
 
-**Objetivo:** Generar instalador `.msi` (Windows), `.dmg` (macOS) o `.deb` (Linux) según el SO objetivo.
+**Objetivo:** Distribuir la app para uso en producción local.
 
-### Pasos
-1. Verificar que `next build` y `next start` funcionan empaquetados (o usar Tauri con sidecar para servidor Next embebido).
-2. Configurar `src-tauri/tauri.conf.json`:
-   - `productName`: "Librería"
-   - `version`: "1.0.0"
-   - `identifier`: "com.libreria.app" (o el que prefiera el usuario)
-   - Iconos en `src-tauri/icons/`.
-   - Bundle targets según SO.
-3. Probar `pnpm tauri build` → instalador generado.
-4. Documentar en README:
-   - Cómo instalar PostgreSQL en la máquina destino.
-   - Cómo crear la BD `libreria` y configurar el `.env`.
-   - Cómo correr las migraciones iniciales (`pnpm prisma migrate deploy`).
-   - Cómo correr el seed.
+> **Tauri fue descartado** — incompatible con Next.js SSR sin empaquetar Node.js como sidecar.
+> Opciones a evaluar con el usuario: Docker Compose (Next.js + PostgreSQL), script de instalación, o similar.
 
-### Verificación manual
-- [ ] Instalador se genera sin errores.
-- [ ] Instalar el `.msi` / `.dmg` / `.deb` en una máquina limpia (o VM).
-- [ ] Tras instalar, la app arranca, conecta a PostgreSQL local y funciona.
-- [ ] Flujo completo en la app instalada: login → crear producto → crear cliente → registrar venta → ver reporte.
-
-### Criterios de aceptación
-- [ ] README actualizado con guía completa de instalación para el usuario final.
-- [ ] Commit: `chore: empaquetado tauri para release v1.0.0`.
+### Cuando se defina la estrategia, documentar aquí los pasos.
 
 ---
 

@@ -9,7 +9,7 @@
 **Nombre:** Sistema de Gestión de Inventario para Librería Escolar
 **Tipo de negocio:** Librería / papelería dedicada a productos escolares y educativos (cuadernos, lápices, mochilas, textos escolares, útiles, etc.). **NO es una librería de libros literarios**, por lo tanto el modelo de datos NO debe centrarse en ISBN, autores ni editoriales.
 **Ubicación del negocio:** Ecuador (moneda USD).
-**Modalidad de uso:** Aplicación de escritorio (Tauri) con base de datos PostgreSQL local en la misma máquina. **Uso offline garantizado** por diseño (no depende de internet).
+**Modalidad de uso:** Aplicación web local (Next.js) con base de datos PostgreSQL en la misma máquina. **Uso offline garantizado** por diseño (no depende de internet).
 
 ### Objetivos funcionales
 1. Gestión de **inventario** de productos (código, nombre, precio de compra, precio de venta, cantidad).
@@ -49,7 +49,7 @@
 | Gestor de paquetes | **pnpm** | Obligatorio. NO usar npm ni yarn. |
 | Runtime / Framework | **Next.js 15+ (App Router)** con **API Routes** | Server Components por defecto. |
 | Lenguaje | **TypeScript estricto** | `strict: true` en tsconfig. Prohibido `any` salvo justificación documentada. |
-| Aplicación de escritorio | **Tauri 2.x** | Empaqueta el Next.js como app nativa. |
+| Distribución | **Por definir** (Docker u otras opciones a evaluar) | Tauri descartado por incompatibilidad con Next.js SSR. |
 | Base de datos | **PostgreSQL** (local) | Versión 16+ recomendada. |
 | ORM | **Prisma** | Migraciones versionadas en `prisma/migrations`. |
 | Validación | **Zod** | Schemas compartidos entre cliente y servidor. |
@@ -114,11 +114,6 @@ libreria_app/                    ← carpeta donde está CLAUDE.md y se ejecuta 
 │   ├── schema.prisma
 │   ├── migrations/
 │   └── seed.ts
-├── src-tauri/                   ← código y configuración de Tauri
-│   ├── Cargo.toml
-│   ├── tauri.conf.json
-│   └── src/
-│       └── main.rs
 └── src/
     ├── app/                     ← Next.js App Router
     │   ├── (auth)/
@@ -295,14 +290,14 @@ enum SaleStatus {
 
 El usuario eligió **estrategia feature-driven**: cada feature se entrega completa (modelo + Server Actions + UI) antes de pasar a la siguiente. Ver `PLAN.md` para detalles. Orden estricto:
 
-1. **Setup inicial** (Next.js + Tauri + Prisma + Tailwind + shadcn/ui + Auth.js) **en la carpeta actual**.
+1. **Setup inicial** (Next.js + Prisma + Tailwind + shadcn/ui + Auth.js) **en la carpeta actual**.
 2. **Autenticación** (login con username + password, sin roles).
 3. **Productos** (CRUD básico de inventario).
 4. **Clientes** (CRUD básico).
 5. **Ventas** (registro de venta = un producto + cliente + cantidad).
 6. **Dashboard** (KPIs simples).
 7. **Reportes** (por día y por mes usando `createdAt`).
-8. **Empaquetado Tauri** y release.
+8. **Distribución** (por definir — Docker u otras opciones).
 
 > **No saltes pasos. No empieces el feature N+1 hasta que N esté completo y commiteado.**
 
@@ -336,7 +331,7 @@ El usuario eligió **estrategia feature-driven**: cada feature se entrega comple
 3. Helpers en `src/lib/money.ts` para formatear (`$ 1,234.56`), parsear, calcular `total = unitPrice * quantity`, calcular `profit = salePrice - purchasePrice`.
 
 ### Verificación manual (reemplaza a los tests)
-Antes de cerrar una feature, **prueba manualmente en el navegador / app Tauri** los siguientes escenarios cuando aplique:
+Antes de cerrar una feature, **prueba manualmente en el navegador** los siguientes escenarios cuando aplique:
 - Caso feliz: el flujo principal funciona.
 - Caso de error: el sistema responde con mensajes claros cuando la entrada es inválida.
 - Persistencia: al recargar, los datos siguen ahí.
@@ -398,7 +393,6 @@ pnpm db:seed                     # poblar con datos iniciales
 
 # Desarrollo
 pnpm dev                         # Next.js en modo dev
-pnpm tauri dev                   # Tauri en modo dev (Next + ventana nativa)
 
 # Calidad
 pnpm lint
@@ -406,7 +400,7 @@ pnpm typecheck
 
 # Build / release
 pnpm build                       # next build
-pnpm tauri build                 # empaquetar app de escritorio
+pnpm build && pnpm start         # build de producción
 ```
 
 ---
