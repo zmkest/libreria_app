@@ -4,32 +4,32 @@ import { Package, Users, ShoppingCart, BarChart2 } from "lucide-react";
 
 const modules = [
   {
-    href: "/productos",
-    label: "Productos",
+    href:        "/productos",
+    label:       "Productos",
     description: "Gestiona el inventario de la librería",
-    icon: Package,
-    color: "bg-brand",
+    icon:        Package,
+    color:       "bg-brand",
   },
   {
-    href: "/clientes",
-    label: "Clientes",
+    href:        "/clientes",
+    label:       "Clientes",
     description: "Administra la base de clientes",
-    icon: Users,
-    color: "bg-brand-light",
+    icon:        Users,
+    color:       "bg-brand-light",
   },
   {
-    href: "/ventas",
-    label: "Ventas",
+    href:        "/ventas",
+    label:       "Ventas",
     description: "Registra y revisa las ventas",
-    icon: ShoppingCart,
-    color: "bg-brand-dark",
+    icon:        ShoppingCart,
+    color:       "bg-brand-dark",
   },
   {
-    href: "/reportes",
-    label: "Reportes",
-    description: "Consulta reportes por día y mes",
-    icon: BarChart2,
-    color: "bg-brand",
+    href:        "/reportes",
+    label:       "Reportes",
+    description: "Consulta reportes por día, mes o año",
+    icon:        BarChart2,
+    color:       "bg-brand",
   },
 ];
 
@@ -39,7 +39,6 @@ export default async function HomePage() {
 
   return (
     <div>
-      {/* Encabezado de bienvenida */}
       <div className="mb-10">
         <h1 className="text-3xl font-bold text-brand-dark mb-1">
           Bienvenido, {name}
@@ -49,7 +48,6 @@ export default async function HomePage() {
         </p>
       </div>
 
-      {/* Cards de acceso rápido */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {modules.map(({ href, label, description, icon: Icon, color }) => (
           <Link
