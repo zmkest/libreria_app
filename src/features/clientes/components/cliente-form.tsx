@@ -48,6 +48,7 @@ export function ClienteForm({ editingCustomer, onSuccess, onCancel }: Props) {
 
     if (result.success) {
       toast.success(isEditing ? "Cliente actualizado" : "Cliente registrado");
+      if (!isEditing) reset({ firstName: "", lastName: "", idNumber: "", phone: "", address: "" });
       onSuccess();
     } else {
       toast.error(result.error);
