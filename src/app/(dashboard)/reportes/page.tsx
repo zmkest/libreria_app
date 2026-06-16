@@ -1,6 +1,5 @@
-import { format } from "date-fns";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { getReport } from "@/features/reportes/queries";
+import { getReport, defaultPeriodValue } from "@/features/reportes/queries";
 import { ReporteFiltros } from "@/features/reportes/components/reporte-filtros";
 import { ReporteTabla } from "@/features/reportes/components/reporte-tabla";
 import { formatCurrency } from "@/lib/money";
@@ -15,13 +14,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Sea
   const periodType: PeriodType =
     tipo === "dia" || tipo === "mes" || tipo === "anio" ? tipo : "mes";
 
-  const now = new Date();
-  const defaultValor =
-    periodType === "dia"  ? format(now, "yyyy-MM-dd") :
-    periodType === "mes"  ? format(now, "yyyy-MM") :
-                            format(now, "yyyy");
-
-  const periodValue = valor ?? defaultValor;
+  const periodValue = valor ?? defaultPeriodValue(periodType);
   const report = await getReport(periodType, periodValue);
 
   const netProfitDecimal = new Decimal(report.netProfit);
@@ -49,7 +42,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Sea
               {formatCurrency(new Decimal(report.totalSales))}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {report.count} venta{report.count !== 1 ? "s" : ""} completada{report.count !== 1 ? "s" : ""}
+              {report.count} venta{report.count !== 1 ? "s" : ""} en el período
             </p>
           </div>
         </div>

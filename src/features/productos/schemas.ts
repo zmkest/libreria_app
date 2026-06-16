@@ -12,9 +12,9 @@ export const createProductSchema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(200),
   purchasePrice: priceField,
   salePrice: priceField,
-  stock: z.coerce
-    .number({ invalid_type_error: "El stock debe ser un número" })
-    .int({ message: "El stock debe ser un número entero" })
+  stock: z
+    .number({ error: "El stock debe ser un número" })
+    .int("El stock debe ser un número entero")
     .min(0, "El stock no puede ser negativo"),
 });
 

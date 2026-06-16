@@ -9,10 +9,7 @@ export const createSaleSchema = z.object({
   items: z
     .array(saleItemSchema)
     .min(1, "Debe agregar al menos un producto"),
-  paymentMethod: z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA"], {
-    required_error:    "Debe seleccionar un método de pago",
-    invalid_type_error: "Método de pago no válido",
-  }),
+  paymentMethod: z.enum(["EFECTIVO", "TRANSFERENCIA", "TARJETA"]),
   customerId: z.string().optional(),
 });
 

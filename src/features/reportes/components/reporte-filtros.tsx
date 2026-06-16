@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
 import type { PeriodType } from "@/features/reportes/queries";
 
 interface Props {
@@ -11,10 +10,10 @@ interface Props {
 }
 
 function defaultValor(tipo: PeriodType): string {
-  const now = new Date();
-  if (tipo === "dia")  return format(now, "yyyy-MM-dd");
-  if (tipo === "mes")  return format(now, "yyyy-MM");
-  return format(now, "yyyy");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(new Date());
+  if (tipo === "dia") return today;
+  if (tipo === "mes") return today.slice(0, 7);
+  return today.slice(0, 4);
 }
 
 const YEARS = Array.from({ length: 8 }, (_, i) => 2020 + i);

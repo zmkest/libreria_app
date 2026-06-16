@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { formatCurrency } from "@/lib/money";
 import Decimal from "decimal.js";
 import type { SaleReportRow } from "@/features/reportes/queries";
@@ -20,7 +21,7 @@ export function ReporteTabla({ sales }: Props) {
   if (sales.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow-md px-6 py-12 text-center text-sm text-gray-400">
-        No hay ventas completadas en el período seleccionado
+        No hay ventas en el período seleccionado
       </div>
     );
   }
@@ -46,7 +47,7 @@ export function ReporteTabla({ sales }: Props) {
         <table className="w-full">
           <thead>
             <tr>
-              {["N°", "Fecha", "Cliente", "Producto", "Cant.", "P. Venta", "Inversión", "Total", "Ganancia"].map((h) => (
+              {["N°", "Fecha", "Cliente", "Productos", "Total", "Inversión", "Ganancia", ""].map((h) => (
                 <th
                   key={h}
                   className="bg-brand text-white px-4 py-3 text-left text-sm font-semibold whitespace-nowrap"
@@ -76,27 +77,36 @@ export function ReporteTabla({ sales }: Props) {
                       ? `${sale.customer.firstName} ${sale.customer.lastName}`
                       : <span className="text-gray-400 italic">Consumidor final</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark max-w-[160px]">
-                    <span className="block truncate" title={sale.productName}>
-                      {sale.productName}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark text-center">
-                    {sale.quantity}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark whitespace-nowrap">
-                    {formatCurrency(new Decimal(sale.unitPrice))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark whitespace-nowrap">
-                    {formatCurrency(new Decimal(sale.investment))}
+                  <td className="px-4 py-3 text-sm text-brand-dark max-w-[200px]">
+                    {sale.details.length === 1 ? (
+                      <span className="block truncate" title={sale.details[0].productName}>
+                        {sale.details[0].productName}
+                      </span>
+                    ) : (
+                      <span className="text-brand font-medium">
+                        {sale.details.length} productos
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-brand-dark whitespace-nowrap">
                     {formatCurrency(new Decimal(sale.total))}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-brand-dark whitespace-nowrap">
+                    {formatCurrency(new Decimal(sale.investment))}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold whitespace-nowrap">
                     <span className={isLoss ? "text-danger" : "text-green-600"}>
                       {formatCurrency(profit)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/ventas/${sale.id}`}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium text-brand border border-brand-border hover:bg-brand hover:text-white transition-all whitespace-nowrap"
+                    >
+                      <Eye size={12} />
+                      Ver
+                    </Link>
                   </td>
                 </tr>
               );

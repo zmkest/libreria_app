@@ -132,7 +132,7 @@ export function ProductoForm({ editingProduct, onSuccess, onCancel }: Props) {
               {isEditing ? "Stock actual (unidades)" : "Stock inicial (unidades)"}
             </label>
             <input
-              {...register("stock")}
+              {...register("stock", { valueAsNumber: true })}
               type="number"
               min="0"
               step="1"

@@ -47,13 +47,12 @@ export function Navbar({ userName }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 w-full bg-brand shadow-md">
       <div className="flex items-center justify-between px-8 py-0 h-16">
-        <a href="/" className="flex items-center gap-3 shrink-0">
-          <img src="/img/logo.png" alt="Logo" width={64} 
-          className="object-contain" 
-          style={{
-            filter: "brightness(0) invert(1)"
-          }}/>
-        </a>
+        <Link href="/" className="flex items-center gap-3 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/img/logo.png" alt="Logo" width={64}
+          className="object-contain"
+          style={{ filter: "brightness(0) invert(1)" }} />
+        </Link>
 
         <nav className="flex items-center gap-1">
           {navItems.map(({ href, label }) => {
