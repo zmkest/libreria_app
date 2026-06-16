@@ -13,6 +13,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/img/logo2.png" type="image/png" />
+      </head>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
           {children}
