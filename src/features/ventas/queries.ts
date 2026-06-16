@@ -1,74 +1,105 @@
 import { prisma } from "@/lib/prisma";
-import { SaleStatus, Prisma } from "@/generated/prisma/client";
-import { startOfDay, endOfDay } from "date-fns";
+import { Prisma } from "@/generated/prisma/client";
 
-export interface SaleRow {
-  id:           string;
-  saleNumber:   number;
-  createdAt:    string;
-  customer:     { id: string; firstName: string; lastName: string } | null;
-  user:         { id: string; name: string };
-  productId:    string;
-  productName:  string;
-  unitPrice:    string;
-  quantity:     number;
-  total:        string;
-  status:       SaleStatus;
-  cancelReason: string | null;
-  cancelledAt:  string | null;
+// Ecuador es UTC-5 sin horario de verano
+const TZ = "America/Guayaquil";
+
+function dayStart(dateStr: string): Date {
+  return new Date(`${dateStr}T00:00:00-05:00`);
+}
+function dayEnd(dateStr: string): Date {
+  return new Date(`${dateStr}T23:59:59.999-05:00`);
+}
+function todayInEcuador(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 }
 
-function serializeSale(s: {
-  id: string;
-  saleNumber: number;
-  createdAt: Date;
-  customer: { id: string; firstName: string; lastName: string } | null;
-  user: { id: string; name: string };
+export interface SaleDetailRow {
+  id:        string;
   productId: string;
-  productName: string;
-  unitPrice: { toString(): string };
-  quantity: number;
-  total: { toString(): string };
-  status: SaleStatus;
-  cancelReason: string | null;
-  cancelledAt: Date | null;
-}): SaleRow {
-  return {
-    ...s,
-    unitPrice:   s.unitPrice.toString(),
-    total:       s.total.toString(),
-    createdAt:   s.createdAt.toISOString(),
-    cancelledAt: s.cancelledAt ? s.cancelledAt.toISOString() : null,
-  };
+  product:   { name: string; code: string };
+  quantity:  number;
+  unitPrice: string;
+  subtotal:  string;
+}
+
+export interface SaleRow {
+  id:            string;
+  saleNumber:    number;
+  createdAt:     string;
+  paymentMethod: string;
+  total:         string;
+  customer:      { id: string; firstName: string; lastName: string } | null;
+  user:          { id: string; name: string };
+  details:       SaleDetailRow[];
 }
 
 const saleSelect = {
-  id:           true,
-  saleNumber:   true,
-  createdAt:    true,
-  productId:    true,
-  productName:  true,
-  unitPrice:    true,
-  quantity:     true,
-  total:        true,
-  status:       true,
-  cancelReason: true,
-  cancelledAt:  true,
+  id:            true,
+  saleNumber:    true,
+  createdAt:     true,
+  paymentMethod: true,
+  total:         true,
   customer: { select: { id: true, firstName: true, lastName: true } },
   user:     { select: { id: true, name: true } },
+  details:  {
+    select: {
+      id:        true,
+      productId: true,
+      product:   { select: { name: true, code: true } },
+      quantity:  true,
+      unitPrice: true,
+      subtotal:  true,
+    },
+    orderBy: { createdAt: "asc" as const },
+  },
 } as const;
+
+function serializeSale(s: {
+  id:            string;
+  saleNumber:    number;
+  createdAt:     Date;
+  paymentMethod: string;
+  total:         { toString(): string };
+  customer:      { id: string; firstName: string; lastName: string } | null;
+  user:          { id: string; name: string };
+  details: {
+    id:        string;
+    productId: string;
+    product:   { name: string; code: string };
+    quantity:  number;
+    unitPrice: { toString(): string };
+    subtotal:  { toString(): string };
+  }[];
+}): SaleRow {
+  return {
+    id:            s.id,
+    saleNumber:    s.saleNumber,
+    createdAt:     s.createdAt.toISOString(),
+    paymentMethod: s.paymentMethod,
+    total:         s.total.toString(),
+    customer:      s.customer,
+    user:          s.user,
+    details: s.details.map((d) => ({
+      id:        d.id,
+      productId: d.productId,
+      product:   d.product,
+      quantity:  d.quantity,
+      unitPrice: d.unitPrice.toString(),
+      subtotal:  d.subtotal.toString(),
+    })),
+  };
+}
 
 export async function listSales({
   from,
   to,
-  status,
   search   = "",
   page     = 1,
   pageSize = 15,
 }: {
   from?:     string;
   to?:       string;
-  status?:   SaleStatus | "TODAS";
   search?:   string;
   page?:     number;
   pageSize?: number;
@@ -77,19 +108,15 @@ export async function listSales({
 
   if (from || to) {
     where.createdAt = {
-      ...(from ? { gte: new Date(from) } : {}),
-      ...(to   ? { lte: new Date(to)   } : {}),
+      ...(from ? { gte: dayStart(from) } : {}),
+      ...(to   ? { lte: dayEnd(to)     } : {}),
     };
-  }
-
-  if (status && status !== "TODAS") {
-    where.status = status;
   }
 
   if (search) {
     const num = parseInt(search, 10);
     where.OR = [
-      { productName: { contains: search, mode: "insensitive" } },
+      { details: { some: { product: { name: { contains: search, mode: "insensitive" } } } } },
       ...(!isNaN(num) ? [{ saleNumber: num }] : []),
     ];
   }
@@ -130,29 +157,35 @@ export async function getSalesByCustomer(customerId: string): Promise<SaleRow[]>
 }
 
 export async function getDailySummary() {
-  const now  = new Date();
-  const from = startOfDay(now);
-  const to   = endOfDay(now);
+  const today   = todayInEcuador();          // "YYYY-MM-DD" en hora Ecuador
+  const dayFrom = dayStart(today);
+  const dayTo   = dayEnd(today);
 
-  const where = {
-    status:    "COMPLETADA" as SaleStatus,
-    createdAt: { gte: from, lte: to },
-  };
+  // Primer y último día del mes actual en Ecuador
+  const [y, m]  = today.split("-").map(Number);
+  const firstDay = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay  = new Date(y, m, 0).getDate();
+  const lastDayStr = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const monFrom = dayStart(firstDay);
+  const monTo   = dayEnd(lastDayStr);
 
-  const [agg, cancelled] = await Promise.all([
+  const [dayAgg, monAgg] = await Promise.all([
     prisma.sale.aggregate({
-      where,
-      _sum:   { total: true },
+      where: { createdAt: { gte: dayFrom, lte: dayTo } },
+      _sum:  { total: true },
       _count: true,
     }),
-    prisma.sale.count({
-      where: { status: "CANCELADA", createdAt: { gte: from, lte: to } },
+    prisma.sale.aggregate({
+      where: { createdAt: { gte: monFrom, lte: monTo } },
+      _sum:  { total: true },
+      _count: true,
     }),
   ]);
 
   return {
-    total:     agg._sum.total?.toString() ?? "0",
-    count:     agg._count,
-    cancelled,
+    dayTotal:  dayAgg._sum.total?.toString()  ?? "0",
+    dayCount:  dayAgg._count,
+    monTotal:  monAgg._sum.total?.toString()  ?? "0",
+    monCount:  monAgg._count,
   };
 }

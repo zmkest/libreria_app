@@ -15,17 +15,25 @@ interface Props {
   currentPage: number;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "COMPLETADA") {
-    return (
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
-        Completada
-      </span>
-    );
-  }
+const PAYMENT_STYLES: Record<string, string> = {
+  EFECTIVO:      "bg-green-50 text-green-700 border-green-200",
+  TRANSFERENCIA: "bg-blue-50 text-blue-700 border-blue-200",
+  TARJETA:       "bg-purple-50 text-purple-700 border-purple-200",
+};
+const PAYMENT_LABELS: Record<string, string> = {
+  EFECTIVO:      "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA:       "Tarjeta",
+};
+
+function PaymentBadge({ method }: { method: string }) {
   return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">
-      Cancelada
+    <span
+      className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${
+        PAYMENT_STYLES[method] ?? "bg-gray-50 text-gray-600 border-gray-200"
+      }`}
+    >
+      {PAYMENT_LABELS[method] ?? method}
     </span>
   );
 }
@@ -45,7 +53,7 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
         <table className="w-full">
           <thead>
             <tr>
-              {["N°", "Fecha", "Cliente", "Producto", "Cant.", "P. Unitario", "Total", "Estado", ""].map((h) => (
+              {["N°", "Fecha", "Cliente", "Productos", "Método", "Total", ""].map((h) => (
                 <th
                   key={h}
                   className="bg-brand text-white px-4 py-3 text-left text-sm font-semibold whitespace-nowrap"
@@ -58,7 +66,7 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
           <tbody>
             {sales.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-400">
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
                   No hay ventas con los filtros aplicados
                 </td>
               </tr>
@@ -81,22 +89,22 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
                       <span className="text-gray-400 italic">Consumidor final</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark max-w-[180px]">
-                    <span className="block truncate" title={sale.productName}>
-                      {sale.productName}
-                    </span>
+                  <td className="px-4 py-3 text-sm text-brand-dark max-w-[200px]">
+                    {sale.details.length === 1 ? (
+                      <span className="block truncate" title={sale.details[0].product.name}>
+                        {sale.details[0].product.name}
+                      </span>
+                    ) : (
+                      <span className="text-brand font-medium">
+                        {sale.details.length} productos
+                      </span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark text-center">
-                    {sale.quantity}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark whitespace-nowrap">
-                    {formatCurrency(new Decimal(sale.unitPrice))}
+                  <td className="px-4 py-3">
+                    <PaymentBadge method={sale.paymentMethod} />
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-brand-dark whitespace-nowrap">
                     {formatCurrency(new Decimal(sale.total))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={sale.status} />
                   </td>
                   <td className="px-4 py-3">
                     <Link

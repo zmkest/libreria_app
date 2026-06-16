@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Plus, ShoppingCart, XCircle } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp } from "lucide-react";
 import { listSales, getDailySummary } from "@/features/ventas/queries";
-import { SaleStatus } from "@/generated/prisma/client";
 import { VentasFiltros } from "@/features/ventas/components/ventas-filtros";
 import { VentasTabla } from "@/features/ventas/components/ventas-tabla";
 import { formatCurrency } from "@/lib/money";
@@ -10,24 +9,17 @@ import Decimal from "decimal.js";
 type SearchParams = Promise<{
   from?:   string;
   to?:     string;
-  status?: string;
   search?: string;
   page?:   string;
 }>;
 
 export default async function VentasPage({ searchParams }: { searchParams: SearchParams }) {
-  const { from, to, status, search, page } = await searchParams;
-
-  const statusFilter =
-    status === "COMPLETADA" || status === "CANCELADA"
-      ? (status as SaleStatus)
-      : "TODAS";
+  const { from, to, search, page } = await searchParams;
 
   const [{ items, total, totalPages, page: currentPage }, daily] = await Promise.all([
     listSales({
       from,
       to,
-      status: statusFilter,
       search,
       page:     Number(page) || 1,
       pageSize: 15,
@@ -51,7 +43,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
         </Link>
       </div>
 
-      {/* Resumen del día */}
+      {/* Resumen */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-4 border-l-4 border-brand">
           <div className="p-3 rounded-xl bg-brand-bg">
@@ -60,23 +52,25 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
           <div>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total del día</p>
             <p className="text-2xl font-bold text-brand mt-0.5">
-              {formatCurrency(new Decimal(daily.total))}
+              {formatCurrency(new Decimal(daily.dayTotal))}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {daily.count} venta{daily.count !== 1 ? "s" : ""} completada{daily.count !== 1 ? "s" : ""}
+              {daily.dayCount} venta{daily.dayCount !== 1 ? "s" : ""} registrada{daily.dayCount !== 1 ? "s" : ""}
             </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-4 border-l-4 border-red-300">
-          <div className="p-3 rounded-xl bg-red-50">
-            <XCircle size={22} className="text-danger" />
+        <div className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-4 border-l-4 border-green-400">
+          <div className="p-3 rounded-xl bg-green-50">
+            <TrendingUp size={22} className="text-green-600" />
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Canceladas hoy</p>
-            <p className="text-2xl font-bold text-brand-dark mt-0.5">{daily.cancelled}</p>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Total del mes</p>
+            <p className="text-2xl font-bold text-brand mt-0.5">
+              {formatCurrency(new Decimal(daily.monTotal))}
+            </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              venta{daily.cancelled !== 1 ? "s" : ""} cancelada{daily.cancelled !== 1 ? "s" : ""} hoy
+              {daily.monCount} venta{daily.monCount !== 1 ? "s" : ""} este mes
             </p>
           </div>
         </div>
@@ -85,7 +79,6 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
       <VentasFiltros
         currentFrom={from ?? ""}
         currentTo={to ?? ""}
-        currentStatus={status ?? "TODAS"}
         currentSearch={search ?? ""}
       />
 

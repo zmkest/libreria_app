@@ -13,6 +13,7 @@ export default async function NuevaVentaPage() {
     code:      p.code,
     name:      p.name,
     salePrice: p.salePrice.toString(),
+    stock:     p.stock,
   }));
 
   const clientes = clientesData.items.map((c) => ({
