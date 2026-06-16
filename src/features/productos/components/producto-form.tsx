@@ -25,7 +25,7 @@ export function ProductoForm({ editingProduct, onSuccess, onCancel }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<CreateProductInput>({
     resolver: zodResolver(createProductSchema),
-    defaultValues: { code: "", name: "", purchasePrice: "", salePrice: "" },
+    defaultValues: { code: "", name: "", purchasePrice: "", salePrice: "", stock: 0 },
   });
 
   useEffect(() => {
@@ -35,9 +35,10 @@ export function ProductoForm({ editingProduct, onSuccess, onCancel }: Props) {
         name: editingProduct.name,
         purchasePrice: editingProduct.purchasePrice,
         salePrice: editingProduct.salePrice,
+        stock: editingProduct.stock,
       });
     } else {
-      reset({ code: "", name: "", purchasePrice: "", salePrice: "" });
+      reset({ code: "", name: "", purchasePrice: "", salePrice: "", stock: 0 });
     }
   }, [editingProduct, reset]);
 
@@ -53,6 +54,7 @@ export function ProductoForm({ editingProduct, onSuccess, onCancel }: Props) {
 
     if (result.success) {
       toast.success(isEditing ? "Producto actualizado" : "Producto creado");
+      reset({ code: "", name: "", purchasePrice: "", salePrice: "", stock: 0 });
       onSuccess();
     } else {
       toast.error(result.error);
@@ -122,6 +124,23 @@ export function ProductoForm({ editingProduct, onSuccess, onCancel }: Props) {
             />
             {errors.salePrice && (
               <p className="mt-1 text-xs text-danger">{errors.salePrice.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className={labelClass}>
+              {isEditing ? "Stock actual (unidades)" : "Stock inicial (unidades)"}
+            </label>
+            <input
+              {...register("stock")}
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+              className={inputClass}
+            />
+            {errors.stock && (
+              <p className="mt-1 text-xs text-danger">{errors.stock.message}</p>
             )}
           </div>
         </div>

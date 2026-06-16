@@ -14,6 +14,7 @@ export interface ProductRow {
   purchasePrice: string;
   salePrice: string;
   profit: string;
+  stock: number;
   createdAt: string;
 }
 

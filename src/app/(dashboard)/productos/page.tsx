@@ -11,6 +11,7 @@ export default async function ProductosPage() {
     purchasePrice: p.purchasePrice.toString(),
     salePrice: p.salePrice.toString(),
     profit: p.profit.toString(),
+    stock: p.stock,
     createdAt: p.createdAt.toISOString(),
   }));
 

@@ -39,55 +39,66 @@ model Customer {
 // ============ PRODUCTOS ============
 
 model Product {
-  id            String   @id @default(cuid())
-  code          String   @unique
+  id            String  @id @default(cuid())
+  code          String  @unique
   name          String
-  purchasePrice Decimal  @db.Decimal(10, 2)
-  salePrice     Decimal  @db.Decimal(10, 2)
-  // Campo dormido: no mostrar en UI, no modificar al vender
-  stock         Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  sales         Sale[]
+  purchasePrice Decimal @db.Decimal(10, 2)
+  salePrice     Decimal @db.Decimal(10, 2)
+  stock         Int     @default(0)
+
+  saleDetails SaleDetail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([code])
   @@index([name])
 }
 
 // ============ VENTAS ============
-
-enum SaleStatus {
-  COMPLETADA
-  CANCELADA
+enum PaymentMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  TARJETA
 }
 
 model Sale {
-  id           String     @id @default(cuid())
-  saleNumber   Int        @unique @default(autoincrement())
+  id String @id @default(cuid())
 
-  customerId   String?
-  customer     Customer?  @relation(fields: [customerId], references: [id])
+  saleNumber Int @unique @default(autoincrement())
 
-  userId       String
-  user         User       @relation(fields: [userId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
 
-  productId    String
-  product      Product    @relation(fields: [productId], references: [id])
-  productName  String
-  unitPrice    Decimal    @db.Decimal(10, 2)
-  quantity     Int
-  total        Decimal    @db.Decimal(10, 2)
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  status       SaleStatus @default(COMPLETADA)
-  cancelReason String?
-  cancelledAt  DateTime?
+  details SaleDetail[]
 
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  total         Decimal       @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
 
-  @@index([createdAt])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([customerId])
   @@index([userId])
+  @@index([createdAt])
+}
+
+model SaleDetail {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([saleId])
   @@index([productId])
-  @@index([status])
 }

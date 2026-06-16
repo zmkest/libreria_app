@@ -16,7 +16,7 @@ export async function createProduct(
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const { code, name, purchasePrice, salePrice } = parsed.data;
+  const { code, name, purchasePrice, salePrice, stock } = parsed.data;
 
   const existing = await prisma.product.findUnique({ where: { code } });
   if (existing) {
@@ -24,7 +24,7 @@ export async function createProduct(
   }
 
   const product = await prisma.product.create({
-    data: { code, name, purchasePrice, salePrice },
+    data: { code, name, purchasePrice, salePrice, stock },
     select: { id: true },
   });
 
@@ -40,7 +40,7 @@ export async function updateProduct(
     return { success: false, error: parsed.error.issues[0].message };
   }
 
-  const { code, name, purchasePrice, salePrice } = parsed.data;
+  const { code, name, purchasePrice, salePrice, stock } = parsed.data;
 
   if (code) {
     const existing = await prisma.product.findFirst({
@@ -59,6 +59,7 @@ export async function updateProduct(
         ...(name && { name }),
         ...(purchasePrice !== undefined && { purchasePrice }),
         ...(salePrice !== undefined && { salePrice }),
+        ...(stock !== undefined && { stock }),
       },
       select: { id: true },
     });
@@ -75,11 +76,11 @@ export async function updateProduct(
 export async function deleteProduct(
   id: string,
 ): Promise<ActionResult<{ id: string }>> {
-  const salesCount = await prisma.sale.count({ where: { productId: id } });
+  const salesCount = await prisma.saleDetail.count({ where: { productId: id } });
   if (salesCount > 0) {
     return {
       success: false,
-      error: `No se puede eliminar: el producto tiene ${salesCount} venta(s) asociada(s)`,
+      error: `No se puede eliminar: el producto aparece en ${salesCount} línea(s) de venta`,
     };
   }
 

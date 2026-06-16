@@ -55,6 +55,22 @@ export function ProductosTable({ products, onEdit, onDelete }: Props) {
         size: 140,
       },
       {
+        accessorKey: "stock",
+        header: "Stock",
+        cell: ({ getValue }) => {
+          const stock = getValue() as number;
+          const colorClass =
+            stock === 0
+              ? "text-danger font-bold"
+              : stock <= 10
+                ? "text-yellow-600 font-semibold"
+                : "text-green-600 font-medium";
+          return <span className={colorClass}>{stock}</span>;
+        },
+        sortingFn: (a, b) => a.original.stock - b.original.stock,
+        size: 80,
+      },
+      {
         accessorKey: "profit",
         header: "Ganancia",
         cell: ({ getValue }) => {

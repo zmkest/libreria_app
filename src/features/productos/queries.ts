@@ -9,6 +9,7 @@ export interface ProductWithProfit {
   purchasePrice: Decimal;
   salePrice: Decimal;
   profit: Decimal;
+  stock: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ function attachProfit(product: {
   name: string;
   purchasePrice: { toFixed: (n: number) => string } | string | number;
   salePrice: { toFixed: (n: number) => string } | string | number;
+  stock: number;
   createdAt: Date;
   updatedAt: Date;
 }): ProductWithProfit {
@@ -31,6 +33,7 @@ function attachProfit(product: {
     purchasePrice: purchase,
     salePrice: sale,
     profit: calculateProfit(sale, purchase),
+    stock: product.stock,
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
   };
@@ -66,6 +69,7 @@ export async function listProducts({
         name: true,
         purchasePrice: true,
         salePrice: true,
+        stock: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -91,6 +95,7 @@ export async function getProductById(id: string): Promise<ProductWithProfit | nu
       name: true,
       purchasePrice: true,
       salePrice: true,
+      stock: true,
       createdAt: true,
       updatedAt: true,
     },
