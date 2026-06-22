@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { createSaleSchema } from "./schemas";
+import { createSaleSchema, cancelSaleSchema } from "./schemas";
 import type { CreateSaleInput } from "./schemas";
 import Decimal from "decimal.js";
 
@@ -12,7 +12,7 @@ type ActionResult<T> =
 
 export async function createSale(
   input: CreateSaleInput,
-): Promise<ActionResult<{ id: string; saleNumber: number; lowStockWarnings: string[] }>> {
+): Promise<ActionResult<{ id: string; saleNumber: number }>> {
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: "Sesión no válida. Vuelva a iniciar sesión." };
@@ -25,11 +25,10 @@ export async function createSale(
 
   const { items, paymentMethod, customerId } = parsed.data;
 
-  // Una sola consulta para todos los productos del carrito
   const uniqueIds = [...new Set(items.map((i) => i.productId))];
   const products  = await prisma.product.findMany({
     where:  { id: { in: uniqueIds } },
-    select: { id: true, name: true, salePrice: true, stock: true },
+    select: { id: true, salePrice: true },
   });
 
   if (products.length !== uniqueIds.length) {
@@ -38,18 +37,15 @@ export async function createSale(
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
-  // Calcular subtotales con Decimal
   const resolvedItems = items.map((item) => {
     const p         = productMap.get(item.productId)!;
     const unitPrice = new Decimal(p.salePrice.toString());
     const subtotal  = unitPrice.times(item.quantity);
     return {
-      productId:    item.productId,
-      productName:  p.name,
-      productStock: p.stock,
-      quantity:     item.quantity,
-      unitPrice:    unitPrice.toFixed(2),
-      subtotal:     subtotal.toFixed(2),
+      productId: item.productId,
+      quantity:  item.quantity,
+      unitPrice: unitPrice.toFixed(2),
+      subtotal:  subtotal.toFixed(2),
     };
   });
 
@@ -58,43 +54,124 @@ export async function createSale(
     new Decimal(0),
   );
 
-  // Productos cuyo stock no alcanza para la cantidad pedida (advertencia, no bloqueo)
-  const lowStockWarnings = resolvedItems
-    .filter((item) => item.productStock < item.quantity)
-    .map((item) => item.productName);
-
-  // Crear venta + detalles + decrementar stock en una sola transacción
-  const sale = await prisma.$transaction(async (tx) => {
-    const created = await tx.sale.create({
-      data: {
-        userId:        session.user.id,
-        customerId:    customerId ?? null,
-        paymentMethod,
-        total:         grandTotal.toFixed(2),
-        details: {
-          create: resolvedItems.map((item) => ({
-            productId: item.productId,
-            quantity:  item.quantity,
-            unitPrice: item.unitPrice,
-            subtotal:  item.subtotal,
-          })),
-        },
+  // Crear borrador: sin tocar stock, estado BORRADOR
+  const sale = await prisma.sale.create({
+    data: {
+      userId:        session.user.id,
+      customerId:    customerId ?? null,
+      paymentMethod,
+      total:         grandTotal.toFixed(2),
+      status:        "BORRADOR",
+      details: {
+        create: resolvedItems.map((item) => ({
+          productId: item.productId,
+          quantity:  item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal:  item.subtotal,
+        })),
       },
-      select: { id: true, saleNumber: true },
-    });
-
-    for (const item of resolvedItems) {
-      await tx.product.update({
-        where: { id: item.productId },
-        data:  { stock: { decrement: item.quantity } },
-      });
-    }
-
-    return created;
+    },
+    select: { id: true, saleNumber: true },
   });
 
-  return {
-    success: true,
-    data: { id: sale.id, saleNumber: sale.saleNumber, lowStockWarnings },
-  };
+  return { success: true, data: { id: sale.id, saleNumber: sale.saleNumber } };
+}
+
+export async function confirmSale(
+  id: string,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Sesión no válida. Vuelva a iniciar sesión." };
+  }
+
+  const sale = await prisma.sale.findUnique({
+    where:  { id },
+    select: {
+      id:      true,
+      status:  true,
+      details: { select: { productId: true, quantity: true } },
+    },
+  });
+
+  if (!sale) {
+    return { success: false, error: "Venta no encontrada." };
+  }
+  if (sale.status !== "BORRADOR") {
+    return { success: false, error: "Solo se puede confirmar una venta en estado BORRADOR." };
+  }
+
+  // Descontar stock y marcar como PAGADA en una sola transacción
+  await prisma.$transaction(async (tx) => {
+    await tx.sale.update({
+      where: { id },
+      data:  { status: "PAGADA", paidAt: new Date() },
+    });
+
+    for (const detail of sale.details) {
+      await tx.product.update({
+        where: { id: detail.productId },
+        data:  { stock: { decrement: detail.quantity } },
+      });
+    }
+  });
+
+  return { success: true, data: { id } };
+}
+
+export async function cancelSale(
+  id: string,
+  cancellationReason: string,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Sesión no válida. Vuelva a iniciar sesión." };
+  }
+
+  const parsed = cancelSaleSchema.safeParse({ cancellationReason });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0].message };
+  }
+
+  const sale = await prisma.sale.findUnique({
+    where:  { id },
+    select: {
+      id:      true,
+      status:  true,
+      details: { select: { productId: true, quantity: true } },
+    },
+  });
+
+  if (!sale) {
+    return { success: false, error: "Venta no encontrada." };
+  }
+  if (sale.status === "ANULADA") {
+    return { success: false, error: "La venta ya está anulada." };
+  }
+
+  const wasPagada = sale.status === "PAGADA";
+
+  // Anular y revertir stock (solo si venía de PAGADA) en una sola transacción
+  await prisma.$transaction(async (tx) => {
+    await tx.sale.update({
+      where: { id },
+      data: {
+        status:             "ANULADA",
+        cancellationReason: cancellationReason.trim(),
+        cancelledById:      session.user.id,
+        cancelledAt:        new Date(),
+      },
+    });
+
+    if (wasPagada) {
+      for (const detail of sale.details) {
+        await tx.product.update({
+          where: { id: detail.productId },
+          data:  { stock: { increment: detail.quantity } },
+        });
+      }
+    }
+  });
+
+  return { success: true, data: { id } };
 }

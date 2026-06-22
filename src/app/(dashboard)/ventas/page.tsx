@@ -10,17 +10,19 @@ type SearchParams = Promise<{
   from?:   string;
   to?:     string;
   search?: string;
+  status?: string;
   page?:   string;
 }>;
 
 export default async function VentasPage({ searchParams }: { searchParams: SearchParams }) {
-  const { from, to, search, page } = await searchParams;
+  const { from, to, search, status, page } = await searchParams;
 
   const [{ items, total, totalPages, page: currentPage }, daily] = await Promise.all([
     listSales({
       from,
       to,
       search,
+      status,
       page:     Number(page) || 1,
       pageSize: 15,
     }),
@@ -43,7 +45,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
         </Link>
       </div>
 
-      {/* Resumen */}
+      {/* Resumen — solo ventas PAGADAS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl shadow-md px-6 py-5 flex items-center gap-4 border-l-4 border-brand">
           <div className="p-3 rounded-xl bg-brand-bg">
@@ -55,7 +57,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
               {formatCurrency(new Decimal(daily.dayTotal))}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              {daily.dayCount} venta{daily.dayCount !== 1 ? "s" : ""} registrada{daily.dayCount !== 1 ? "s" : ""}
+              {daily.dayCount} venta{daily.dayCount !== 1 ? "s" : ""} pagada{daily.dayCount !== 1 ? "s" : ""}
             </p>
           </div>
         </div>
@@ -80,6 +82,7 @@ export default async function VentasPage({ searchParams }: { searchParams: Searc
         currentFrom={from ?? ""}
         currentTo={to ?? ""}
         currentSearch={search ?? ""}
+        currentStatus={status ?? ""}
       />
 
       <VentasTabla

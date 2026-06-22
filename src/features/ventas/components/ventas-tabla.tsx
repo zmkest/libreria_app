@@ -25,6 +25,16 @@ const PAYMENT_LABELS: Record<string, string> = {
   TRANSFERENCIA: "Transferencia",
   TARJETA:       "Tarjeta",
 };
+const STATUS_STYLES: Record<string, string> = {
+  BORRADOR: "bg-yellow-50 text-yellow-700 border-yellow-300",
+  PAGADA:   "bg-green-50 text-green-700 border-green-200",
+  ANULADA:  "bg-red-50 text-red-700 border-red-200",
+};
+const STATUS_LABELS: Record<string, string> = {
+  BORRADOR: "Borrador",
+  PAGADA:   "Pagada",
+  ANULADA:  "Anulada",
+};
 
 function PaymentBadge({ method }: { method: string }) {
   return (
@@ -34,6 +44,18 @@ function PaymentBadge({ method }: { method: string }) {
       }`}
     >
       {PAYMENT_LABELS[method] ?? method}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
+        STATUS_STYLES[status] ?? "bg-gray-50 text-gray-600 border-gray-200"
+      }`}
+    >
+      {STATUS_LABELS[status] ?? status}
     </span>
   );
 }
@@ -53,7 +75,7 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
         <table className="w-full">
           <thead>
             <tr>
-              {["N°", "Fecha", "Cliente", "Productos", "Método", "Total", ""].map((h) => (
+              {["N°", "Fecha", "Cliente", "Productos", "Estado", "Método", "Total", ""].map((h) => (
                 <th
                   key={h}
                   className="bg-brand text-white px-4 py-3 text-left text-sm font-semibold whitespace-nowrap"
@@ -66,7 +88,7 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
           <tbody>
             {sales.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                   No hay ventas con los filtros aplicados
                 </td>
               </tr>
@@ -74,7 +96,11 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
               sales.map((sale) => (
                 <tr
                   key={sale.id}
-                  className="border-t border-brand-border even:bg-brand-bg/40 hover:bg-brand-bg transition-colors"
+                  className={`border-t border-brand-border transition-colors ${
+                    sale.status === "ANULADA"
+                      ? "bg-red-50/40 opacity-70"
+                      : "even:bg-brand-bg/40 hover:bg-brand-bg"
+                  }`}
                 >
                   <td className="px-4 py-3 text-sm font-bold text-brand whitespace-nowrap">
                     #{String(sale.saleNumber).padStart(3, "0")}
@@ -101,9 +127,14 @@ export function VentasTabla({ sales, totalPages, currentPage }: Props) {
                     )}
                   </td>
                   <td className="px-4 py-3">
+                    <StatusBadge status={sale.status} />
+                  </td>
+                  <td className="px-4 py-3">
                     <PaymentBadge method={sale.paymentMethod} />
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-brand-dark whitespace-nowrap">
+                  <td className={`px-4 py-3 text-sm font-bold whitespace-nowrap ${
+                    sale.status === "ANULADA" ? "text-gray-400 line-through" : "text-brand-dark"
+                  }`}>
                     {formatCurrency(new Decimal(sale.total))}
                   </td>
                   <td className="px-4 py-3">

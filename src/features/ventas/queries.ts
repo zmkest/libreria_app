@@ -24,24 +24,34 @@ export interface SaleDetailRow {
 }
 
 export interface SaleRow {
-  id:            string;
-  saleNumber:    number;
-  createdAt:     string;
-  paymentMethod: string;
-  total:         string;
-  customer:      { id: string; firstName: string; lastName: string } | null;
-  user:          { id: string; name: string };
-  details:       SaleDetailRow[];
+  id:                 string;
+  saleNumber:         number;
+  createdAt:          string;
+  paymentMethod:      string;
+  total:              string;
+  status:             string;
+  paidAt:             string | null;
+  cancellationReason: string | null;
+  cancelledAt:        string | null;
+  cancelledBy:        { id: string; name: string } | null;
+  customer:           { id: string; firstName: string; lastName: string } | null;
+  user:               { id: string; name: string };
+  details:            SaleDetailRow[];
 }
 
 const saleSelect = {
-  id:            true,
-  saleNumber:    true,
-  createdAt:     true,
-  paymentMethod: true,
-  total:         true,
-  customer: { select: { id: true, firstName: true, lastName: true } },
-  user:     { select: { id: true, name: true } },
+  id:                 true,
+  saleNumber:         true,
+  createdAt:          true,
+  paymentMethod:      true,
+  total:              true,
+  status:             true,
+  paidAt:             true,
+  cancellationReason: true,
+  cancelledAt:        true,
+  cancelledBy: { select: { id: true, name: true } },
+  customer:    { select: { id: true, firstName: true, lastName: true } },
+  user:        { select: { id: true, name: true } },
   details:  {
     select: {
       id:        true,
@@ -56,13 +66,18 @@ const saleSelect = {
 } as const;
 
 function serializeSale(s: {
-  id:            string;
-  saleNumber:    number;
-  createdAt:     Date;
-  paymentMethod: string;
-  total:         { toString(): string };
-  customer:      { id: string; firstName: string; lastName: string } | null;
-  user:          { id: string; name: string };
+  id:                 string;
+  saleNumber:         number;
+  createdAt:          Date;
+  paymentMethod:      string;
+  total:              { toString(): string };
+  status:             string;
+  paidAt:             Date | null;
+  cancellationReason: string | null;
+  cancelledAt:        Date | null;
+  cancelledBy:        { id: string; name: string } | null;
+  customer:           { id: string; firstName: string; lastName: string } | null;
+  user:               { id: string; name: string };
   details: {
     id:        string;
     productId: string;
@@ -73,13 +88,18 @@ function serializeSale(s: {
   }[];
 }): SaleRow {
   return {
-    id:            s.id,
-    saleNumber:    s.saleNumber,
-    createdAt:     s.createdAt.toISOString(),
-    paymentMethod: s.paymentMethod,
-    total:         s.total.toString(),
-    customer:      s.customer,
-    user:          s.user,
+    id:                 s.id,
+    saleNumber:         s.saleNumber,
+    createdAt:          s.createdAt.toISOString(),
+    paymentMethod:      s.paymentMethod,
+    total:              s.total.toString(),
+    status:             s.status,
+    paidAt:             s.paidAt?.toISOString() ?? null,
+    cancellationReason: s.cancellationReason,
+    cancelledAt:        s.cancelledAt?.toISOString() ?? null,
+    cancelledBy:        s.cancelledBy,
+    customer:           s.customer,
+    user:               s.user,
     details: s.details.map((d) => ({
       id:        d.id,
       productId: d.productId,
@@ -95,12 +115,14 @@ export async function listSales({
   from,
   to,
   search   = "",
+  status,
   page     = 1,
   pageSize = 15,
 }: {
   from?:     string;
   to?:       string;
   search?:   string;
+  status?:   string;
   page?:     number;
   pageSize?: number;
 }) {
@@ -111,6 +133,10 @@ export async function listSales({
       ...(from ? { gte: dayStart(from) } : {}),
       ...(to   ? { lte: dayEnd(to)     } : {}),
     };
+  }
+
+  if (status && ["BORRADOR", "PAGADA", "ANULADA"].includes(status)) {
+    where.status = status as "BORRADOR" | "PAGADA" | "ANULADA";
   }
 
   if (search) {
@@ -157,35 +183,35 @@ export async function getSalesByCustomer(customerId: string): Promise<SaleRow[]>
 }
 
 export async function getDailySummary() {
-  const today   = todayInEcuador();          // "YYYY-MM-DD" en hora Ecuador
+  const today   = todayInEcuador();
   const dayFrom = dayStart(today);
   const dayTo   = dayEnd(today);
 
-  // Primer y último día del mes actual en Ecuador
-  const [y, m]  = today.split("-").map(Number);
-  const firstDay = `${y}-${String(m).padStart(2, "0")}-01`;
-  const lastDay  = new Date(y, m, 0).getDate();
+  const [y, m]     = today.split("-").map(Number);
+  const firstDay   = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay    = new Date(y, m, 0).getDate();
   const lastDayStr = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  const monFrom = dayStart(firstDay);
-  const monTo   = dayEnd(lastDayStr);
+  const monFrom    = dayStart(firstDay);
+  const monTo      = dayEnd(lastDayStr);
 
+  // Solo ventas PAGADAS en los resúmenes (excluye borradores y anuladas)
   const [dayAgg, monAgg] = await Promise.all([
     prisma.sale.aggregate({
-      where: { createdAt: { gte: dayFrom, lte: dayTo } },
+      where: { status: "PAGADA", createdAt: { gte: dayFrom, lte: dayTo } },
       _sum:  { total: true },
       _count: true,
     }),
     prisma.sale.aggregate({
-      where: { createdAt: { gte: monFrom, lte: monTo } },
+      where: { status: "PAGADA", createdAt: { gte: monFrom, lte: monTo } },
       _sum:  { total: true },
       _count: true,
     }),
   ]);
 
   return {
-    dayTotal:  dayAgg._sum.total?.toString()  ?? "0",
-    dayCount:  dayAgg._count,
-    monTotal:  monAgg._sum.total?.toString()  ?? "0",
-    monCount:  monAgg._count,
+    dayTotal: dayAgg._sum.total?.toString()  ?? "0",
+    dayCount: dayAgg._count,
+    monTotal: monAgg._sum.total?.toString()  ?? "0",
+    monCount: monAgg._count,
   };
 }

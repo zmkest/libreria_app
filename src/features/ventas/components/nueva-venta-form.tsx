@@ -122,13 +122,7 @@ export function NuevaVentaForm({ productos, clientes }: Props) {
 
     if (result.success) {
       const saleNum = String(result.data.saleNumber).padStart(3, "0");
-      if (result.data.lowStockWarnings.length > 0) {
-        toast.warning(
-          `Venta #${saleNum} registrada. Stock insuficiente en: ${result.data.lowStockWarnings.join(", ")}`,
-        );
-      } else {
-        toast.success(`Venta #${saleNum} registrada`);
-      }
+      toast.success(`Borrador #${saleNum} guardado`);
       router.push(`/ventas/${result.data.id}`);
     } else {
       toast.error(result.error);
@@ -150,7 +144,15 @@ export function NuevaVentaForm({ productos, clientes }: Props) {
       </Link>
 
       <div className="bg-white rounded-2xl shadow-md p-8">
-        <h2 className="text-xl font-bold text-brand mb-6">Registrar Venta</h2>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-brand">Nueva Venta</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Se guardará como <span className="font-semibold">Borrador</span>. Desde el detalle
+              podrás confirmar el pago o anularla.
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
 
@@ -269,13 +271,21 @@ export function NuevaVentaForm({ productos, clientes }: Props) {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting || !hasValidItems}
-            className="w-full py-3 rounded-xl font-bold text-white bg-brand hover:bg-brand-dark hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
-          >
-            {submitting ? "Registrando..." : "Registrar venta"}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={submitting || !hasValidItems}
+              className="flex-1 py-3 rounded-xl font-bold text-white bg-brand hover:bg-brand-dark hover:-translate-y-0.5 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
+            >
+              {submitting ? "Guardando..." : "Guardar borrador"}
+            </button>
+            <Link
+              href="/ventas"
+              className="px-6 py-3 rounded-xl font-bold text-brand-dark border-2 border-brand-border hover:bg-brand-bg transition-all text-center"
+            >
+              Descartar
+            </Link>
+          </div>
         </form>
       </div>
     </div>

@@ -13,5 +13,13 @@ export const createSaleSchema = z.object({
   customerId: z.string().optional(),
 });
 
-export type CreateSaleInput = z.infer<typeof createSaleSchema>;
-export type SaleItemInput   = z.infer<typeof saleItemSchema>;
+export const cancelSaleSchema = z.object({
+  cancellationReason: z
+    .string()
+    .min(1, "El motivo de anulación es obligatorio")
+    .max(500, "El motivo no puede superar los 500 caracteres"),
+});
+
+export type CreateSaleInput  = z.infer<typeof createSaleSchema>;
+export type SaleItemInput    = z.infer<typeof saleItemSchema>;
+export type CancelSaleInput  = z.infer<typeof cancelSaleSchema>;

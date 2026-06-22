@@ -45,11 +45,6 @@ export function Navbar({ userName }: NavbarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Cierra el menú al navegar
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-
   return (
     <header className="sticky top-0 z-50 w-full bg-brand shadow-md">
       {/* Barra principal */}
@@ -119,6 +114,7 @@ export function Navbar({ userName }: NavbarProps) {
                 <Link
                   key={href}
                   href={href}
+                  onClick={() => setMobileOpen(false)}
                   className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     active
                       ? "bg-white/20 text-white"

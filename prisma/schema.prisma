@@ -10,13 +10,14 @@ datasource db {
 // ============ USUARIOS ============
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sales     Sale[]
+  id             String   @id @default(cuid())
+  username       String   @unique
+  password       String
+  name           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  sales          Sale[]   @relation("CreatedSales")
+  cancelledSales Sale[]   @relation("CancelledSales")
 }
 
 // ============ CLIENTES ============
@@ -56,34 +57,50 @@ model Product {
 }
 
 // ============ VENTAS ============
+
 enum PaymentMethod {
   EFECTIVO
   TRANSFERENCIA
   TARJETA
 }
 
-model Sale {
-  id String @id @default(cuid())
+enum SaleStatus {
+  BORRADOR
+  PAGADA
+  ANULADA
+}
 
-  saleNumber Int @unique @default(autoincrement())
+model Sale {
+  id         String @id @default(cuid())
+  saleNumber Int    @unique @default(autoincrement())
 
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation("CreatedSales", fields: [userId], references: [id])
 
   details SaleDetail[]
 
   total         Decimal       @db.Decimal(10, 2)
   paymentMethod PaymentMethod
+  status        SaleStatus    @default(BORRADOR)
+
+  paidAt DateTime?
+
+  cancellationReason String?
+  cancelledById      String?
+  cancelledBy        User?     @relation("CancelledSales", fields: [cancelledById], references: [id])
+  cancelledAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([customerId])
   @@index([userId])
+  @@index([cancelledById])
   @@index([createdAt])
+  @@index([status])
 }
 
 model SaleDetail {

@@ -8,29 +8,39 @@ interface Props {
   currentFrom:   string;
   currentTo:     string;
   currentSearch: string;
+  currentStatus: string;
 }
 
-export function VentasFiltros({ currentFrom, currentTo, currentSearch }: Props) {
+const STATUS_OPTIONS = [
+  { value: "",         label: "Todos" },
+  { value: "BORRADOR", label: "Borrador" },
+  { value: "PAGADA",   label: "Pagada" },
+  { value: "ANULADA",  label: "Anulada" },
+];
+
+export function VentasFiltros({ currentFrom, currentTo, currentSearch, currentStatus }: Props) {
   const router = useRouter();
   const [from,   setFrom]   = useState(currentFrom);
   const [to,     setTo]     = useState(currentTo);
   const [search, setSearch] = useState(currentSearch);
+  const [status, setStatus] = useState(currentStatus);
 
   function applyFilters() {
     const params = new URLSearchParams();
     if (from)   params.set("from",   from);
     if (to)     params.set("to",     to);
     if (search) params.set("search", search);
+    if (status) params.set("status", status);
     params.set("page", "1");
     router.push(`/ventas?${params.toString()}`);
   }
 
   function clearFilters() {
-    setFrom(""); setTo(""); setSearch("");
+    setFrom(""); setTo(""); setSearch(""); setStatus("");
     router.push("/ventas");
   }
 
-  const hasFilters = from || to || search;
+  const hasFilters = from || to || search || status;
 
   const inputClass =
     "px-3 py-2.5 rounded-xl text-sm text-brand-dark bg-brand-input border-2 border-brand-border outline-none transition-all focus:border-brand focus:shadow-[0_0_5px_rgba(40,85,141,0.2)]";
@@ -56,6 +66,19 @@ export function VentasFiltros({ currentFrom, currentTo, currentSearch }: Props) 
             onChange={(e) => setTo(e.target.value)}
             className={inputClass}
           />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-bold text-brand-dark">Estado</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className={inputClass}
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
