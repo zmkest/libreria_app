@@ -9,6 +9,27 @@ import { formatCurrency } from "@/lib/money";
 import Decimal from "decimal.js";
 import type { SaleReportRow } from "@/features/reportes/queries";
 
+const STATUS_STYLES: Record<string, string> = {
+  BORRADOR: "bg-yellow-50 text-yellow-700 border-yellow-300",
+  PAGADA:   "bg-green-50 text-green-700 border-green-200",
+  ANULADA:  "bg-red-50 text-red-700 border-red-200",
+};
+const STATUS_LABELS: Record<string, string> = {
+  BORRADOR: "Borrador",
+  PAGADA:   "Pagada",
+  ANULADA:  "Anulada",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
+      STATUS_STYLES[status] ?? "bg-gray-50 text-gray-600 border-gray-200"
+    }`}>
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
 const PAGE_SIZE = 10;
 
 interface Props {
@@ -47,7 +68,7 @@ export function ReporteTabla({ sales }: Props) {
         <table className="w-full">
           <thead>
             <tr>
-              {["N°", "Fecha", "Cliente", "Productos", "Total", "Inversión", "Ganancia", ""].map((h) => (
+              {["N°", "Fecha", "Cliente", "Productos", "Estado", "Total", "Inversión", "Ganancia", ""].map((h) => (
                 <th
                   key={h}
                   className="bg-brand text-white px-4 py-3 text-left text-sm font-semibold whitespace-nowrap"
@@ -59,12 +80,17 @@ export function ReporteTabla({ sales }: Props) {
           </thead>
           <tbody>
             {pageRows.map((sale) => {
-              const profit = new Decimal(sale.profit);
-              const isLoss = profit.isNegative();
+              const profit    = new Decimal(sale.profit);
+              const isLoss    = profit.isNegative();
+              const isAnulada = sale.status === "ANULADA";
               return (
                 <tr
                   key={sale.id}
-                  className="border-t border-brand-border even:bg-brand-bg/40 hover:bg-brand-bg transition-colors"
+                  className={`border-t border-brand-border transition-colors ${
+                    isAnulada
+                      ? "bg-red-50/40 opacity-70"
+                      : "even:bg-brand-bg/40 hover:bg-brand-bg"
+                  }`}
                 >
                   <td className="px-4 py-3 text-sm font-bold text-brand whitespace-nowrap">
                     #{String(sale.saleNumber).padStart(3, "0")}
@@ -88,20 +114,27 @@ export function ReporteTabla({ sales }: Props) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-brand-dark whitespace-nowrap">
+                  <td className="px-4 py-3">
+                    <StatusBadge status={sale.status} />
+                  </td>
+                  <td className={`px-4 py-3 text-sm font-bold whitespace-nowrap ${isAnulada ? "text-gray-400 line-through" : "text-brand-dark"}`}>
                     {formatCurrency(new Decimal(sale.total))}
                   </td>
-                  <td className="px-4 py-3 text-sm text-brand-dark whitespace-nowrap">
+                  <td className={`px-4 py-3 text-sm whitespace-nowrap ${isAnulada ? "text-gray-400 line-through" : "text-brand-dark"}`}>
                     {formatCurrency(new Decimal(sale.investment))}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold whitespace-nowrap">
-                    <span className={isLoss ? "text-danger" : "text-green-600"}>
-                      {formatCurrency(profit)}
-                    </span>
+                    {isAnulada ? (
+                      <span className="text-gray-400">—</span>
+                    ) : (
+                      <span className={isLoss ? "text-danger" : "text-green-600"}>
+                        {formatCurrency(profit)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      href={`/ventas/${sale.id}`}
+                      href={`/ventas/${sale.id}?back=/reportes`}
                       className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg font-medium text-brand border border-brand-border hover:bg-brand hover:text-white transition-all whitespace-nowrap"
                     >
                       <Eye size={12} />

@@ -48,6 +48,7 @@ export interface SaleReportRow {
   id:         string;
   saleNumber: number;
   createdAt:  string;
+  status:     string;
   customer:   { firstName: string; lastName: string } | null;
   details:    SaleDetailReportRow[];
   total:      string;
@@ -76,6 +77,7 @@ export async function getReport(
       id:         true,
       saleNumber: true,
       createdAt:  true,
+      status:     true,
       total:      true,
       customer:   { select: { firstName: true, lastName: true } },
       details: {
@@ -103,13 +105,17 @@ export async function getReport(
     const saleTotal = new Decimal(s.total.toString());
     const profit    = saleTotal.minus(investment);
 
-    totalSales      = totalSales.plus(saleTotal);
-    totalInvestment = totalInvestment.plus(investment);
+    // Solo las ventas PAGADAS suman a los totales
+    if (s.status === "PAGADA") {
+      totalSales      = totalSales.plus(saleTotal);
+      totalInvestment = totalInvestment.plus(investment);
+    }
 
     return {
       id:         s.id,
       saleNumber: s.saleNumber,
       createdAt:  s.createdAt.toISOString(),
+      status:     s.status,
       customer:   s.customer,
       details:    s.details.map((d) => ({
         productName: d.product.name,
@@ -127,7 +133,7 @@ export async function getReport(
     totalSales:      totalSales.toFixed(2),
     totalInvestment: totalInvestment.toFixed(2),
     netProfit:       totalSales.minus(totalInvestment).toFixed(2),
-    count:           sales.length,
+    count:           rows.filter((r) => r.status === "PAGADA").length,
     sales:           rows,
   };
 }

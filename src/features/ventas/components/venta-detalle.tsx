@@ -14,7 +14,8 @@ import { AnularVentaDialog } from "./anular-venta-dialog";
 import type { SaleRow } from "@/features/ventas/queries";
 
 interface Props {
-  sale: SaleRow;
+  sale:    SaleRow;
+  backUrl: string;
 }
 
 const PAYMENT_STYLES: Record<string, string> = {
@@ -39,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
   ANULADA:  "Anulada",
 };
 
-export function VentaDetalle({ sale }: Props) {
+export function VentaDetalle({ sale, backUrl }: Props) {
   const router = useRouter();
   const [confirming, setConfirming]   = useState(false);
   const [showAnular, setShowAnular]   = useState(false);
@@ -61,11 +62,11 @@ export function VentaDetalle({ sale }: Props) {
     <>
       <div className="max-w-2xl mx-auto flex flex-col gap-6">
         <Link
-          href="/ventas"
+          href={backUrl}
           className="flex items-center gap-1.5 text-sm text-brand hover:text-brand-dark transition-colors w-fit"
         >
           <ArrowLeft size={15} />
-          Volver a ventas
+          {backUrl === "/reportes" ? "Volver a reportes" : "Volver a ventas"}
         </Link>
 
         <div className="bg-white rounded-2xl shadow-md p-8">
